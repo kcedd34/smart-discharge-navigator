@@ -10,7 +10,7 @@
 [![FHIR](https://img.shields.io/badge/FHIR-R4-orange)](https://www.hl7.org/fhir/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Author](https://img.shields.io/badge/Author-Carlos%20Eduardo%20Dias%20Duarte-informational)](mailto:kcedd34@gmail.com)
-[![GitHub](https://img.shields.io/badge/GitHub-smart--discharge--navigator-181717?logo=github)](https://github.com/kcedd34/smart-discharge-navigator)
+[![GitHub](https://img.shields.io/badge/GitHub-kcedd34%2Fsmart--discharge--navigator-181717?logo=github)](https://github.com/kcedd34/smart-discharge-navigator)
 
 ---
 
