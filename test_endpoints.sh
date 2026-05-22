@@ -1,12 +1,51 @@
 #!/bin/bash
 # End-to-end test of all 17 API endpoints
 BASE=http://localhost:8000/api/v1
-PATIENT_ID=22  # Linda Smith (high risk patient)
-PATIENT_ID2=63 # William Jones (moderate risk)
 
 echo "============================================================"
 echo "Smart Discharge Navigator - E2E Endpoint Tests"
 echo "============================================================"
+echo ""
+
+# ──────────────────────────────────────────────
+# Helper: wait for the API to be ready
+# ──────────────────────────────────────────────
+echo "Waiting for API to be ready..."
+for i in $(seq 1 30); do
+    if curl -sf "$BASE/health" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='healthy' else 1)" 2>/dev/null; then
+        echo "✅ API is ready"
+        break
+    fi
+    echo "  Attempt $i/30 — retrying in 5s..."
+    sleep 5
+    if [ "$i" -eq 30 ]; then
+        echo "❌ API did not become ready after 150s. Aborting."
+        exit 1
+    fi
+done
+echo ""
+
+# ──────────────────────────────────────────────
+# Discover patient IDs dynamically
+# (IDs are auto-assigned by IRIS on each fresh install)
+# ──────────────────────────────────────────────
+echo "Discovering patient IDs..."
+PATIENTS_JSON=$(curl -s "$BASE/patients")
+PATIENT_COUNT=$(echo "$PATIENTS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
+
+if [ "$PATIENT_COUNT" -lt 2 ] 2>/dev/null; then
+    echo "❌ Less than 2 patients found (got $PATIENT_COUNT)."
+    echo "   Load sample data first: python3 data/load_sample_data.py"
+    exit 1
+fi
+
+PATIENT_ID=$(echo "$PATIENTS_JSON"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['id'])")
+PATIENT_ID2=$(echo "$PATIENTS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[1]['id'])")
+PATIENT_NAME=$(echo "$PATIENTS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['name'])")
+PATIENT_NAME2=$(echo "$PATIENTS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[1]['name'])")
+echo "  Patient 1: $PATIENT_NAME (ID: $PATIENT_ID)"
+echo "  Patient 2: $PATIENT_NAME2 (ID: $PATIENT_ID2)"
+echo "  Total patients loaded: $PATIENT_COUNT"
 echo ""
 
 test_endpoint() {
@@ -40,7 +79,7 @@ test_endpoint "GET /ai/status" GET "$BASE/ai/status" "" "ai_available"
 test_endpoint "GET /patients" GET "$BASE/patients" "" "risk_level"
 
 # 4. Patient detail
-test_endpoint "GET /patients/{id}" GET "$BASE/patients/$PATIENT_ID" "" "Linda Smith"
+test_endpoint "GET /patients/{id}" GET "$BASE/patients/$PATIENT_ID" "" "risk_score"
 
 # 5. Risk assessment
 test_endpoint "GET /patients/{id}/risk-assessment" GET "$BASE/patients/$PATIENT_ID/risk-assessment" "" "risk_score"
@@ -49,7 +88,7 @@ test_endpoint "GET /patients/{id}/risk-assessment" GET "$BASE/patients/$PATIENT_
 test_endpoint "GET /statistics" GET "$BASE/statistics" "" "total_patients"
 
 # 7. AI Chat
-test_endpoint "POST /ai/chat" POST "$BASE/ai/chat" '{"message": "What is the risk for patient 22?"}' "response"
+test_endpoint "POST /ai/chat" POST "$BASE/ai/chat" "{\"message\": \"What is the readmission risk for patient $PATIENT_ID?\"}" "response"
 
 # 8. AI Patient Analysis
 test_endpoint "GET /patients/{id}/ai-analysis" GET "$BASE/patients/$PATIENT_ID/ai-analysis" "" "ai_risk_level"
