@@ -235,7 +235,7 @@ Request ──► Check AI Availability
 | Requirement | Status | Implementation |
 |-------------|--------|----------------|
 | **AI Agent for FHIR** | ✅ **TRUE AI AGENT** | GPT-4 LLM with clinical reasoning over FHIR data |
-| **FHIR Resources** | ✅ | Patient, Encounter, Condition, Observation, MedicationRequest, CarePlan, Task |
+| **FHIR Resources** | ✅ | Patient, Encounter, Condition, Observation, MedicationRequest, AllergyIntolerance, CarePlan, Task |
 | **Platform Features** | ✅ | FHIR API, FHIR SQL Builder, AI Hub (LLM integration) |
 | **MVP Criteria** | ✅ | Rule-based + AI risk scoring, Task-based interventions |
 | **Conversational AI** | ✅ | Chat interface with patient context and clinical dialogue |
@@ -353,8 +353,13 @@ Response:
 {
   "ai_available": true,
   "model": "gpt-4o",
-  "ai_enabled": true,
-  "has_api_key": true
+  "features": {
+    "chat": true,
+    "patient_analysis": true,
+    "discharge_planning": true,
+    "patient_comparison": true
+  },
+  "mode": "ai-powered"
 }
 ```
 
@@ -376,10 +381,10 @@ Response:
 ```json
 {
   "response": "Based on the FHIR data for this patient, the key readmission risk factors are...",
-  "fhir_sources": ["Patient", "Encounter", "Condition", "MedicationRequest"],
-  "referenced_patients": ["patient-001"],
+  "sources": ["Patient", "Encounter", "Condition", "MedicationRequest"],
+  "patient_ids_referenced": ["patient-001"],
   "confidence": 0.87,
-  "ai_used": true
+  "ai_powered": true
 }
 ```
 
@@ -435,13 +440,15 @@ Request:
 Response:
 ```json
 {
-  "summary": "Triage analysis of 3 patients...",
+  "patient_ids": ["patient-001", "patient-002", "patient-003"],
+  "comparison_summary": "Triage analysis of 3 patients...",
   "risk_ranking": [
     {"patient_id": "patient-001", "rank": 1, "rationale": "Highest acuity..."}
   ],
   "common_risk_factors": ["Age > 65", "Polypharmacy"],
   "unique_concerns": {"patient-001": ["Recent cardiac event"]},
-  "triage_recommendation": "Prioritize patient-001 for intensive discharge planning"
+  "triage_recommendation": "Prioritize patient-001 for intensive discharge planning",
+  "ai_powered": true
 }
 ```
 
@@ -453,8 +460,10 @@ POST /api/v1/patients/{patient_id}/ai-discharge-plan
 Response:
 ```json
 {
-  "plan": "## Personalized Discharge Plan\n\n### Medications\n...",
-  "ai_used": true
+  "patient_id": "22",
+  "discharge_plan": "## Personalized Discharge Plan\n\n### Medications\n...",
+  "ai_powered": true,
+  "model_used": "gpt-4o"
 }
 ```
 
@@ -468,6 +477,11 @@ Response:
 | `GET` | `/api/v1/patients/{id}/risk-assessment` | Rule-based risk assessment |
 | `POST` | `/api/v1/patients/{id}/discharge-plan` | Generate rule-based discharge plan |
 | `GET` | `/api/v1/statistics` | Population statistics |
+| `GET` | `/api/v1/patients/{id}/summary?role=` | Role-based AI patient summary (doctor/patient/caregiver/care_manager) |
+| `POST` | `/api/v1/ai/nl-to-sql` | Natural language to SQL query translation |
+| `GET` | `/api/v1/analytics/sql-stats` | FHIR SQL Builder analytics stats |
+| `GET` | `/api/v1/analytics/readmission-sql` | SQL-based readmission analytics |
+| `GET` | `/api/v1/analytics/sql-builder-info` | FHIR SQL Builder feature info |
 
 ### Interactive API Documentation
 
@@ -579,11 +593,12 @@ docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/i
 
 **Expected output** (success indicators):
 ```
-Mapping sc=1
-1                          ← package loaded
-0                          ← endpoint does not exist yet
-InstallInstance sc=1
-Done - EndpointExists:1    ← endpoint installed successfully
+HSCUSTOM already registered   ← or "ConfigItem save sc=1" on first run
+Saving hl7.fhir.r3.core@3.0.2 ← package data loading (may take 2-5 minutes)
+Saving hl7.fhir.r5.core@5.0.0
+...
+/fhir/r4 already installed     ← or "InstallInstance sc=1" on first run
+Done - EndpointExists:1        ← endpoint installed successfully
 ```
 
 **Step 3d — Configure CSP gateway routing and authentication**
@@ -753,6 +768,7 @@ environment:
 | **Condition** | Active diagnoses | Comorbidity reasoning |
 | **Observation** | Vital signs, labs | Trend detection by AI |
 | **MedicationRequest** | Active medications | Interaction analysis |
+| **AllergyIntolerance** | Drug/food allergies | Allergy-aware discharge planning |
 
 ### Resources Created (Write)
 
@@ -1043,11 +1059,15 @@ This means the FHIR search index classes were not fully generated during install
 Fix: uninstall and reinstall the FHIR endpoint. Run this in an IRIS session:
 
 ```objectscript
-// In HSSYS namespace
-set sc = ##class(%IPM.Utils.Module).AddPackageMapping("%ALL", "%SYSTEM.Context.HealthShare", "HSLIB")
-set sc = ##class(HS.FHIRServer.Installer).UninstallInstance("/fhir/r4")  // may print a non-fatal error; that is OK
-// Wait a few seconds, then reinstall
-set sc = ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", "hl7.fhir.r4.core@4.0.1")
+// In HSSYS namespace — uninstall then reinstall via the install script
+// Step 1: Uninstall
+set sc = ##class(HS.FHIRServer.Installer).UninstallInstance("/fhir/r4")
+write "Uninstall sc=",sc,!
+
+// Step 2: Re-run the install script (handles ConfigItem registration + namespace setup)
+// Exit this session and run from shell:
+// docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
+// docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
 ```
 
 Or simply re-run the install script (it will create a new schema version):

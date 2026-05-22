@@ -21,3 +21,19 @@ nohup.out
 # OS
 .DS_Store
 Thumbs.db
+
+# IRIS debug/investigation scripts (temporary, not part of project)
+config/iris/debug_*.txt
+config/iris/check_*.txt
+config/iris/list_*.txt
+config/iris/read_method*.txt
+config/iris/fhir_diag*.txt
+config/iris/scan_globals.txt
+config/iris/export_class.txt
+config/iris/create_fhirns.txt
+config/iris/create_ns_sql.txt
+config/iris/debug_ns*.txt
+config/iris/install_fhir_v*.txt
+config/iris/install_fhir_direct.txt
+config/iris/install_v3.txt
+config/iris/uninstall_fhir.txt
