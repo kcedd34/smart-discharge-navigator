@@ -12,7 +12,8 @@ from typing import List
 from app.models.patient import (
     PatientSummary, RiskAssessment, DischargePlan,
     AIAnalysis, ChatRequest, ChatResponse,
-    PatientCompareRequest, AIComparisonResult
+    PatientCompareRequest, AIComparisonResult,
+    PatientRoleSummary, NLToSQLRequest, NLToSQLResult
 )
 from app.core.config import settings
 from app.services.fhir_service import fhir_service
@@ -418,4 +419,112 @@ async def get_sql_builder_info():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"FHIR SQL Builder info error: {str(e)}"
+        )
+
+
+# ──────────────────────────────────────────────
+# Role-Based Patient Summary Endpoint
+# (Contest Task #1 — Smart Patient Summary)
+# ──────────────────────────────────────────────
+
+@router.get(
+    "/patients/{patient_id}/summary",
+    response_model=PatientRoleSummary,
+    tags=["AI Agent"]
+)
+async def get_patient_role_summary(
+    patient_id: str,
+    role: str = "doctor"
+):
+    """
+    Role-adapted AI patient summary
+
+    Generates a LLM-powered narrative tailored to the target audience:
+
+    - **doctor / ed_doctor**: Full clinical detail, ICD-10 codes, vitals, allergy-drug interactions
+    - **care_manager**: Care gaps, follow-up adherence, social determinants, care coordination
+    - **patient**: Plain language (8th grade), what conditions mean, daily instructions, warning signs
+    - **caregiver / family**: Home-care guidance, medication safety, when to call the doctor
+
+    Demonstrates Contest Task #1 (Smart Patient Summary) with FHIR data from IRIS.
+
+    Args:
+        patient_id: FHIR Patient ID
+        role: Target audience — doctor | ed_doctor | patient | caregiver | family | care_manager
+
+    Returns:
+        PatientRoleSummary with structured sections, key alerts, and next actions
+    """
+    try:
+        logger.info(f"Role summary request: patient={patient_id} role={role}")
+        summary = await ai_agent_service.generate_patient_summary_by_role(patient_id, role)
+        return summary
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Role summary error for patient {patient_id} role={role}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Role summary error: {str(e)}"
+        )
+
+
+# ──────────────────────────────────────────────
+# Natural Language → SQL Endpoint
+# (Contest Task #8 — NL to FHIR Query Explorer)
+# ──────────────────────────────────────────────
+
+@router.post(
+    "/ai/nl-to-sql",
+    response_model=NLToSQLResult,
+    tags=["FHIR SQL Builder", "AI Agent"]
+)
+async def natural_language_to_sql(request: NLToSQLRequest):
+    """
+    Natural Language to SQL translation via FHIR SQL Builder
+
+    Uses GPT-4o to translate a plain-English clinical question into a SQL query
+    targeting InterSystems IRIS FHIR SQL Builder projections, then executes it.
+
+    The response includes the **generated SQL** so users can inspect, learn,
+    and build on the translation — directly demonstrating NL→SQL transparency.
+
+    Example queries:
+    - "How many patients have diabetes and more than 2 hospital encounters?"
+    - "List all patients with a Penicillin allergy who are on active medications"
+    - "What are the most common conditions among high-risk patients?"
+    - "Show me patients older than 70 with chronic kidney disease"
+
+    Demonstrates Contest Task #8 (Natural Language to FHIR Query Explorer).
+
+    Args:
+        request: NLToSQLRequest with natural language query and execute flag
+
+    Returns:
+        NLToSQLResult with generated SQL, execution results, and explanation
+    """
+    try:
+        logger.info(f"NL-to-SQL request: '{request.query[:100]}'")
+        result = await fhir_sql_analytics.translate_nl_to_sql(
+            nl_query=request.query,
+            execute=request.execute
+        )
+        return NLToSQLResult(
+            nl_query=result["nl_query"],
+            generated_sql=result["generated_sql"],
+            schema_used=result["schema_used"],
+            results=result.get("results"),
+            explanation=result["explanation"],
+            executed=result["executed"],
+            ai_powered=result["ai_powered"],
+            model_used=result["model_used"]
+        )
+    except Exception as e:
+        logger.error(f"NL-to-SQL error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"NL-to-SQL error: {str(e)}"
         )

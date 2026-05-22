@@ -53,6 +53,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 import httpx
+from openai import AsyncOpenAI, APIError
 
 from app.core.config import settings
 
@@ -505,6 +506,151 @@ class FHIRSQLAnalyticsService:
                 "Efficient population-level statistics"
             ],
             "available_tables": tables_result
+        }
+
+    async def translate_nl_to_sql(
+        self, nl_query: str, execute: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Translate a natural language clinical question to SQL using an LLM,
+        then optionally execute it against the IRIS FHIR SQL Builder.
+
+        This demonstrates Task #8 (Natural Language to FHIR Query Explorer):
+        the AI generates the SQL, the user can inspect it, and the query
+        runs server-side on InterSystems IRIS via FHIR SQL Builder.
+
+        Args:
+            nl_query: Natural language question (e.g. "How many diabetic patients have 3+ encounters?")
+            execute: Whether to run the generated SQL against IRIS
+
+        Returns:
+            Dict with nl_query, generated_sql, schema_used, results, explanation, executed
+        """
+        schema = self.schema
+
+        # Describe the available FHIR SQL Builder tables to the LLM
+        schema_description = f"""
+You are querying the InterSystems IRIS FHIR SQL Builder. The SQL schema is **{schema}**.
+
+Available tables and key columns:
+
+{schema}.Patient
+  - Key (patient ID string)
+  - BirthDate (date)
+  - gender (string: 'male' | 'female')
+  - Name_family, Name_given (name parts)
+
+{schema}.Encounter
+  - Key (encounter ID)
+  - Subject (patient reference, format 'Patient/<id>')
+  - Status ('finished' | 'in-progress')
+  - Class_code ('IMP' for inpatient, 'AMB' for ambulatory)
+  - Period_start, Period_end (datetime)
+
+{schema}.Condition
+  - Key
+  - Subject (patient reference)
+  - Code_coding_code (ICD-10 code)
+  - Code_coding_display (condition name)
+  - ClinicalStatus_coding_code ('active' | 'resolved')
+  - OnsetDateTime
+
+{schema}.Observation
+  - Key
+  - Subject (patient reference)
+  - Code_coding_code (LOINC code)
+  - Code_coding_display (observation name, e.g. 'Heart rate')
+  - ValueQuantity_value (numeric value)
+  - ValueQuantity_unit
+  - EffectiveDateTime
+
+{schema}.MedicationRequest
+  - Key
+  - Subject (patient reference)
+  - MedicationCodeableConcept_coding_display (medication name)
+  - Status ('active' | 'stopped')
+  - AuthoredOn
+
+{schema}.AllergyIntolerance
+  - Key
+  - Patient (patient reference, format 'Patient/<id>')
+  - Code_coding_display (substance name)
+  - Code_text (substance text)
+  - Criticality ('high' | 'low' | 'unable-to-assess')
+  - ClinicalStatus_coding_code ('active' | 'resolved')
+
+Rules:
+- Patient references use CONCAT('Patient/', p.Key) format for JOINs.
+- Use DATEDIFF('yy', BirthDate, CURRENT_DATE) to compute age.
+- Always qualify table names with the schema: {schema}.TableName
+- Return only a SELECT query (no DDL, no INSERT).
+- Keep queries readable and add SQL comments explaining each clause.
+"""
+
+        nl_to_sql_system = (
+            "You are a clinical SQL expert. Given a natural language question about "
+            "FHIR patient data, produce a single SQL SELECT query for the InterSystems "
+            "IRIS FHIR SQL Builder schema described by the user. Return JSON only."
+        )
+
+        nl_to_sql_user = f"""{schema_description}
+
+**Natural Language Question:**
+{nl_query}
+
+Return a JSON object with this exact structure:
+{{
+  "sql": "SELECT ... FROM {schema}.TableName ...",
+  "explanation": "Plain-language description of what the SQL does and why each clause was chosen"
+}}"""
+
+        generated_sql = ""
+        explanation = ""
+        ai_available = bool(settings.OPENAI_API_KEY and settings.AI_ENABLED)
+
+        if ai_available:
+            try:
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                response = await client.chat.completions.create(
+                    model=settings.AI_MODEL,
+                    messages=[
+                        {"role": "system", "content": nl_to_sql_system},
+                        {"role": "user", "content": nl_to_sql_user}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                    max_tokens=1000
+                )
+                result_json = json.loads(response.choices[0].message.content)
+                generated_sql = result_json.get("sql", "")
+                explanation = result_json.get("explanation", "")
+            except Exception as e:
+                logger.error(f"NL-to-SQL LLM error: {e}")
+                generated_sql = f"-- LLM unavailable: {e}\nSELECT * FROM {schema}.Patient LIMIT 10"
+                explanation = "LLM translation failed — returned a fallback query."
+                ai_available = False
+        else:
+            generated_sql = f"SELECT * FROM {schema}.Patient LIMIT 10"
+            explanation = (
+                "AI is not configured (set OPENAI_API_KEY). "
+                "This is a placeholder query. Enable AI for natural language translation."
+            )
+
+        execution_result = None
+        executed = False
+        if execute and generated_sql:
+            execution_result = await self.execute_sql(generated_sql)
+            executed = True
+
+        return {
+            "nl_query": nl_query,
+            "generated_sql": generated_sql,
+            "schema_used": schema,
+            "explanation": explanation,
+            "results": execution_result,
+            "executed": executed,
+            "ai_powered": ai_available,
+            "model_used": settings.AI_MODEL if ai_available else "fallback"
         }
 
 

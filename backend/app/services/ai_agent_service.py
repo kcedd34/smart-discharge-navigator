@@ -71,7 +71,7 @@ from app.core.fhir_client import fhir_client
 from app.services.risk_calculator import risk_calculator
 from app.models.patient import (
     AIAnalysis, AIReasoningStep, ChatResponse,
-    AIComparisonResult, RiskAssessment
+    AIComparisonResult, RiskAssessment, PatientRoleSummary
 )
 
 logger = logging.getLogger("ai_agent")
@@ -86,11 +86,12 @@ SYSTEM_PROMPT = """You are a Clinical AI Agent specialized in hospital readmissi
 integrated with InterSystems IRIS for Health FHIR R4 server.
 
 Your capabilities:
-1. Analyze FHIR patient data (Patient, Encounter, Condition, Observation, MedicationRequest resources)
+1. Analyze FHIR patient data (Patient, Encounter, Condition, Observation, MedicationRequest, AllergyIntolerance resources)
 2. Assess 30-day hospital readmission risk using clinical reasoning
 3. Generate personalized discharge recommendations
-4. Identify risk factors that rule-based systems might miss (drug interactions, social determinants, comorbidity synergies)
+4. Identify risk factors that rule-based systems might miss (drug interactions, social determinants, comorbidity synergies, allergy risks)
 5. Compare multiple patients for triage prioritization
+6. Generate role-adapted patient summaries (doctor, patient, caregiver, care_manager)
 
 Guidelines:
 - Always ground your analysis in the provided FHIR data
@@ -130,10 +131,11 @@ Provide your analysis as a JSON object with this exact structure:
 Focus on:
 1. Comorbidity interactions the rule-based system might miss
 2. Medication-related risks (polypharmacy, drug interactions, adherence concerns)
-3. Encounter patterns suggesting deterioration
-4. Social and demographic factors affecting readmission
-5. Vital sign trends rather than single-point values
-6. Specific, actionable discharge interventions"""
+3. AllergyIntolerance risks — flag known allergies that may interact with current medications or typical discharge prescriptions
+4. Encounter patterns suggesting deterioration
+5. Social and demographic factors affecting readmission
+6. Vital sign trends rather than single-point values
+7. Specific, actionable discharge interventions"""
 
 DISCHARGE_PLAN_PROMPT = """Generate a comprehensive, personalized AI-powered discharge plan for this patient.
 
@@ -184,6 +186,35 @@ CHAT_PROMPT_TEMPLATE = """Answer the clinical query using available FHIR patient
 
 Provide a helpful, clinically-informed response. If the query requires patient data you don't have, say so.
 Always cite which FHIR resources informed your answer."""
+
+SUMMARY_ROLE_PROMPT_TEMPLATE = """Generate a patient summary tailored for the role: **{role}**
+
+Role-specific instructions:
+- **doctor / ed_doctor**: Full clinical detail. Include ICD-10/SNOMED codes, lab/vital trends, active medication list with dosages, comorbidity interactions, allergy flags and cross-reactions with current meds, encounter history, risk score, and specialty referral recommendations.
+- **care_manager**: Focus on care gaps, follow-up adherence, social determinants of health, post-discharge coordination needs, allergy considerations for community prescriptions, and risk stratification for case management prioritization.
+- **patient**: Plain language (8th-grade reading level). Explain conditions in everyday words, describe what each medication does, list allergy warnings they must share with any new provider, describe warning signs that require emergency care, and provide simple next-step actions.
+- **caregiver / family**: Home-care focused. What to watch for day-to-day, how to administer medications safely (note any allergy-related precautions), when to call the doctor, dietary/activity guidance, and emergency action plan.
+
+**Patient FHIR Data:**
+{fhir_data}
+
+**Risk Assessment:**
+{risk_summary}
+
+**Known Allergies:**
+{allergies}
+
+Return a JSON object with this exact structure:
+{{
+  "role": "{role}",
+  "summary_title": "Brief descriptive title",
+  "sections": [
+    {{"title": "Section title", "content": "Section text — use clear paragraphs or bullet points"}}
+  ],
+  "key_alerts": ["Alert 1", "Alert 2"],
+  "next_actions": ["Action 1", "Action 2"],
+  "allergy_warnings": ["Allergy warning if relevant, else empty list"]
+}}"""
 
 
 class AIAgentService:
@@ -296,6 +327,7 @@ class AIAgentService:
         conditions = await self.fhir_client.get_patient_conditions(patient_id)
         observations = await self.fhir_client.get_patient_observations(patient_id)
         medications = await self.fhir_client.get_patient_medications(patient_id)
+        allergies = await self.fhir_client.get_patient_allergies(patient_id)
 
         # Extract readable name
         name = "Unknown"
@@ -351,7 +383,23 @@ class AIAgentService:
             ],
             "encounter_count": len(encounters),
             "condition_count": len(conditions),
-            "medication_count": len(medications)
+            "medication_count": len(medications),
+            "allergies": [
+                {
+                    "substance": a.get("code", {}).get("text", "") or
+                                 (a.get("code", {}).get("coding", [{}])[0].get("display", "") if a.get("code", {}).get("coding") else ""),
+                    "criticality": a.get("criticality", "unknown"),
+                    "clinical_status": a.get("clinicalStatus", {}).get("coding", [{}])[0].get("code", "") if a.get("clinicalStatus", {}).get("coding") else "",
+                    "reaction": [
+                        r.get("manifestation", [{}])[0].get("coding", [{}])[0].get("display", "")
+                        if r.get("manifestation") and r["manifestation"][0].get("coding")
+                        else r.get("manifestation", [{}])[0].get("text", "")
+                        for r in a.get("reaction", [])
+                    ]
+                }
+                for a in allergies[:20]
+            ],
+            "allergy_count": len(allergies)
         }
 
     def _generate_fallback_analysis(self, patient_id: str, patient_name: str,
@@ -659,6 +707,127 @@ class AIAgentService:
         except Exception as e:
             logger.error(f"Compare patients LLM error: {e}")
             return self._generate_fallback_comparison(patients_data)
+
+    async def generate_patient_summary_by_role(
+        self, patient_id: str, role: str
+    ) -> "PatientRoleSummary":
+        """
+        Generate a role-adapted patient summary using LLM.
+
+        Tailors the clinical narrative for the target audience:
+        - doctor/ed_doctor: Full clinical detail with codes and interactions
+        - care_manager: Care gaps, follow-up adherence, SDH
+        - patient: Plain language, what it means, what to do
+        - caregiver/family: Home-care instructions and warning signs
+
+        Args:
+            patient_id: FHIR Patient ID
+            role: Target role (doctor | ed_doctor | patient | caregiver | family | care_manager)
+
+        Returns:
+            PatientRoleSummary with role-adapted sections
+        """
+        valid_roles = {"doctor", "ed_doctor", "patient", "caregiver", "family", "care_manager"}
+        if role not in valid_roles:
+            role = "doctor"
+
+        fhir_data = await self._gather_patient_fhir_data(patient_id)
+        if not fhir_data:
+            raise ValueError(f"Patient {patient_id} not found in FHIR server")
+
+        # Build a concise risk summary using rule-based calculator
+        patient = await self.fhir_client.get_resource("Patient", patient_id)
+        age = self._calculate_age(patient.get("birthDate"))
+        encounters = await self.fhir_client.get_patient_encounters(patient_id)
+        conditions = await self.fhir_client.get_patient_conditions(patient_id)
+        medications = await self.fhir_client.get_patient_medications(patient_id)
+        observations = await self.fhir_client.get_patient_observations(patient_id)
+
+        rule_assessment = self.risk_calculator.calculate_risk(
+            patient_id=patient_id,
+            patient_age=age,
+            encounters=encounters,
+            conditions=conditions,
+            medications=medications,
+            observations=observations
+        )
+
+        risk_summary = (
+            f"Risk Score: {rule_assessment.risk_score:.3f} | "
+            f"Level: {rule_assessment.risk_level} | "
+            f"Top factors: {', '.join(f.name for f in rule_assessment.risk_factors if f.value > 0.5)}"
+        )
+
+        allergies_str = (
+            "; ".join(
+                f"{a['substance']} (criticality: {a['criticality']}, reaction: {', '.join(r for r in a['reaction'] if r)})"
+                for a in fhir_data.get("allergies", [])
+            ) or "No active allergies documented"
+        )
+
+        if not self.is_ai_available:
+            return self._generate_fallback_role_summary(
+                fhir_data, role, rule_assessment, allergies_str
+            )
+
+        user_prompt = SUMMARY_ROLE_PROMPT_TEMPLATE.format(
+            role=role,
+            fhir_data=json.dumps(fhir_data, indent=2, default=str),
+            risk_summary=risk_summary,
+            allergies=allergies_str
+        )
+
+        try:
+            llm_response = await self._call_llm(SYSTEM_PROMPT, user_prompt, json_mode=True)
+            result = json.loads(llm_response)
+
+            return PatientRoleSummary(
+                patient_id=patient_id,
+                patient_name=fhir_data.get("patient_name", "Unknown"),
+                role=result.get("role", role),
+                summary_title=result.get("summary_title", f"Patient Summary for {role}"),
+                sections=result.get("sections", []),
+                key_alerts=result.get("key_alerts", []),
+                next_actions=result.get("next_actions", []),
+                allergy_warnings=result.get("allergy_warnings", []),
+                ai_powered=True,
+                model_used=settings.AI_MODEL
+            )
+
+        except Exception as e:
+            logger.error(f"Role summary LLM error for patient {patient_id} role={role}: {e}")
+            return self._generate_fallback_role_summary(
+                fhir_data, role, rule_assessment, allergies_str
+            )
+
+    def _generate_fallback_role_summary(
+        self, fhir_data: dict, role: str,
+        rule_assessment: "RiskAssessment", allergies_str: str
+    ) -> "PatientRoleSummary":
+        """Generate a basic role summary without LLM."""
+        name = fhir_data.get("patient_name", "Unknown")
+        conditions = [c.get("display", "") for c in fhir_data.get("conditions", []) if c.get("display")]
+        medications = [m.get("medication", "") for m in fhir_data.get("medications", []) if m.get("medication")]
+
+        sections = [
+            {"title": "Conditions", "content": "; ".join(conditions[:5]) or "None documented"},
+            {"title": "Medications", "content": "; ".join(medications[:8]) or "None documented"},
+            {"title": "Allergies", "content": allergies_str},
+            {"title": "Risk Level", "content": f"{rule_assessment.risk_level} (score: {rule_assessment.risk_score:.3f})"}
+        ]
+
+        return PatientRoleSummary(
+            patient_id=fhir_data.get("patient_id", ""),
+            patient_name=name,
+            role=role,
+            summary_title=f"Patient Summary — {name} ({role})",
+            sections=sections,
+            key_alerts=[f"Risk level: {rule_assessment.risk_level}"],
+            next_actions=rule_assessment.recommendations[:3],
+            allergy_warnings=[allergies_str] if fhir_data.get("allergy_count", 0) > 0 else [],
+            ai_powered=False,
+            model_used="rule-based-fallback"
+        )
 
     def _generate_fallback_discharge_plan(self, fhir_data: dict, risk_level: str) -> str:
         """Generate a structured discharge plan without LLM"""

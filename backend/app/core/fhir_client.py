@@ -217,6 +217,22 @@ class FHIRClient:
         }
         return await self.search_resources("MedicationRequest", params)
 
+    async def get_patient_allergies(self, patient_id: str) -> List[Dict[str, Any]]:
+        """
+        Get AllergyIntolerance resources for a patient.
+
+        Args:
+            patient_id: FHIR Patient ID
+
+        Returns:
+            List of AllergyIntolerance resources with active clinical status
+        """
+        params = {
+            "patient": patient_id,
+            "clinical-status": "active"
+        }
+        return await self.search_resources("AllergyIntolerance", params)
+
 
 # Singleton instance
 fhir_client = FHIRClient()

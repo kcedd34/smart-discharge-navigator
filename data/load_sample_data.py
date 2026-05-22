@@ -37,6 +37,42 @@ HIGH_RISK_CONDITIONS = [
     {"code": "N18.9", "display": "Chronic Kidney Disease, unspecified"}
 ]
 
+HIGH_RISK_ALLERGIES = [
+    {
+        "substance_code": "372687004",
+        "substance_display": "Penicillin",
+        "criticality": "high",
+        "reaction_display": "Anaphylaxis"
+    },
+    {
+        "substance_code": "372665008",
+        "substance_display": "NSAIDs (Non-steroidal anti-inflammatory drugs)",
+        "criticality": "high",
+        "reaction_display": "Acute Kidney Injury"
+    },
+    {
+        "substance_code": "387584000",
+        "substance_display": "Iodinated contrast media",
+        "criticality": "high",
+        "reaction_display": "Anaphylactoid Reaction"
+    }
+]
+
+MODERATE_RISK_ALLERGIES = [
+    {
+        "substance_code": "372726002",
+        "substance_display": "Sulfonamides",
+        "criticality": "low",
+        "reaction_display": "Skin rash"
+    },
+    {
+        "substance_code": "29175007",
+        "substance_display": "Codeine",
+        "criticality": "low",
+        "reaction_display": "Nausea and vomiting"
+    }
+]
+
 MEDICATIONS = [
     {"code": "197361", "display": "Metformin 500 MG Oral Tablet"},
     {"code": "314076", "display": "Lisinopril 10 MG Oral Tablet"},
@@ -162,6 +198,50 @@ def create_medication_request(patient_id, medication_data, authored_date):
     return med_request
 
 
+def create_allergy_intolerance(patient_id, allergy_data):
+    """Create an AllergyIntolerance resource"""
+    return {
+        "resourceType": "AllergyIntolerance",
+        "clinicalStatus": {
+            "coding": [{
+                "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+                "code": "active",
+                "display": "Active"
+            }]
+        },
+        "verificationStatus": {
+            "coding": [{
+                "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+                "code": "confirmed",
+                "display": "Confirmed"
+            }]
+        },
+        "type": "allergy",
+        "criticality": allergy_data["criticality"],
+        "code": {
+            "coding": [{
+                "system": "http://snomed.info/sct",
+                "code": allergy_data["substance_code"],
+                "display": allergy_data["substance_display"]
+            }],
+            "text": allergy_data["substance_display"]
+        },
+        "patient": {
+            "reference": f"Patient/{patient_id}"
+        },
+        "reaction": [{
+            "manifestation": [{
+                "coding": [{
+                    "system": "http://snomed.info/sct",
+                    "display": allergy_data["reaction_display"]
+                }],
+                "text": allergy_data["reaction_display"]
+            }],
+            "severity": "severe" if allergy_data["criticality"] == "high" else "mild"
+        }]
+    }
+
+
 def post_resource(resource):
     """Post a resource to FHIR server"""
     resource_type = resource["resourceType"]
@@ -262,7 +342,25 @@ def generate_patient_data(risk_profile):
         med_id = post_resource(med_request)
         if med_id:
             print(f"  Created MedicationRequest/{med_id}")
-    
+
+    # Create AllergyIntolerance resources
+    if risk_profile == "high":
+        allergy_pool = HIGH_RISK_ALLERGIES
+        allergy_count = random.randint(1, 3)
+    elif risk_profile == "moderate":
+        allergy_pool = MODERATE_RISK_ALLERGIES + HIGH_RISK_ALLERGIES[:1]
+        allergy_count = random.randint(0, 1)
+    else:
+        allergy_pool = MODERATE_RISK_ALLERGIES
+        allergy_count = random.randint(0, 1)
+
+    selected_allergies = random.sample(allergy_pool, min(allergy_count, len(allergy_pool)))
+    for allergy_data in selected_allergies:
+        allergy = create_allergy_intolerance(patient_id, allergy_data)
+        allergy_id = post_resource(allergy)
+        if allergy_id:
+            print(f"  Created AllergyIntolerance/{allergy_id} - {allergy_data['substance_display']}")
+
     print(f"  ✓ Patient {first_name} {last_name} created successfully\n")
 
 
