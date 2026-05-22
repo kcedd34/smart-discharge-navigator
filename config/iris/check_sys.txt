@@ -1,0 +1,9 @@
+zn "%SYS"
+write "=== %SYS FHIRMeta check ===",!
+write "HS.FHIRMeta.Storage.ObjDef: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.ObjDef"),!
+write "HS.FHIRMeta.Storage.Package: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.Package"),!
+write "HS.FHIRServer.Installer: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRServer.Installer"),!
+write "=== Check IRISLIB ===",!
+zn "IRISLIB"
+write "HS.FHIRMeta.Storage.ObjDef: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.ObjDef"),!
+halt

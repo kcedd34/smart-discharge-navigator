@@ -1,0 +1,21 @@
+# Smart Discharge Navigator — Git line ending configuration
+# Ensures consistent line endings across Windows/Linux/macOS
+
+# Default: normalize to LF on commit
+* text=auto eol=lf
+
+# Shell scripts must always be LF (executed in Linux containers)
+*.sh text eol=lf
+
+# Windows batch files use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — no line ending conversion
+*.mp4 binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary

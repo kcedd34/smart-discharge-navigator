@@ -1,0 +1,12 @@
+write "=== Check SuperUser ===",!
+set user = ##class(Security.Users).%OpenId("SuperUser")
+write "User: ",user.Name,!
+write "Enabled: ",user.Enabled,!
+write "AutheEnabled: ",user.AutheEnabled,!
+write "PasswordNeverExpires: ",user.PasswordNeverExpires,!
+write "=== Reset password ===",!
+set sc = ##class(Security.Users).ChangePassword("SuperUser", "SYS", "SYS")
+write "ChangePassword sc=",sc,!
+set sc2 = ##class(Security.Users).UnExpireUserPasswords("SuperUser")
+write "UnExpire sc=",sc2,!
+halt

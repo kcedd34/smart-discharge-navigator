@@ -1,0 +1,5 @@
+write "=== FHIR Globals zwrite ===",!
+zwrite ^HS.FHIRServer.Reg.ServiceEntryD
+write "=== FHIRServiceEntry ===",!
+zwrite ^HS.FHIRServer.ServiceAdminD
+halt

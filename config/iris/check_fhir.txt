@@ -1,0 +1,11 @@
+write "=== FHIR Package Check ===",!
+write "IsPackageLoaded: ",##class(HS.FHIRMeta.Load.NpmLoader).IsPackageLoaded("hl7.fhir.r4.core@4.0.1"),!
+set pkg = ##class(HS.FHIRMeta.Storage.Package).%OpenId("hl7.fhir.r4.core@4.0.1")
+if $isobject(pkg) {
+    write "Package found: ",pkg.id,!
+    write "Resource count: ",pkg.packageResources.Count(),!
+} else {
+    write "Package NOT FOUND in storage",!
+}
+write "EndpointExists: ",##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4"),!
+halt

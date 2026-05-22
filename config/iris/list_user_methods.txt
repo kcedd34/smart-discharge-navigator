@@ -1,0 +1,3 @@
+write "=== List Security Users methods ===",!
+do ##class(%SYSTEM.OBJ).ShowDependencies("Security.Users")
+halt

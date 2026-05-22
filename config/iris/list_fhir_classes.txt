@@ -1,0 +1,3 @@
+write ##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4"),!
+write ##class(HS.FHIRServer.ServiceAdmin).IsEndpointEnabled("/fhir/r4"),!
+halt

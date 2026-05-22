@@ -1,0 +1,13 @@
+write "=== Check FHIR Service Config ===",!
+set fhirService = ##class(HS.FHIRServer.API.InteractionsStrategy).GetInstanceByCSPApp("/fhir/r4")
+if fhirService = "" {
+  write "GetInstanceByCSPApp returned empty",!
+} else {
+  write "Got service object",!
+}
+write "=== List all FHIR endpoints ===",!
+set rs = ##class(HS.FHIRServer.ServiceAdmin).GetEndpointList()
+while rs.%Next() {
+  write "URL=",rs.%Get("EndpointURL")," Enabled=",rs.%Get("Enabled"),!
+}
+halt

@@ -1,0 +1,16 @@
+write "=== SuperUser Roles ===",!
+set sc = ##class(Security.Users).Get("SuperUser",.props)
+write "Roles=",props("Roles"),!
+write "AutheEnabled=",props("AutheEnabled"),!
+write "=== Check HTTP Password Auth ===",!
+set auth = ##class(Security.System).Get(.sysprops)
+write "auth sc=",auth,!
+write "AutheEnabled=",sysprops("AutheEnabled"),!
+write "=== Add FHIR roles to SuperUser ===",!
+kill props3
+set props3("Roles") = "%DB_HSSYS,%DB_HSLIB,%DB_HSCUSTOM,%HS_DB_HSSYS,%All"
+set sc3 = ##class(Security.Users).Modify("SuperUser",.props3)
+write "Add roles sc=",sc3,!
+set sc4 = ##class(Security.Users).Get("SuperUser",.props4)
+write "New Roles=",props4("Roles"),!
+halt

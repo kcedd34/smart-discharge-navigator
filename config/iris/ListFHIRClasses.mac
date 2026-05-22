@@ -1,0 +1,7 @@
+ListFHIRClasses
+  set rs = ##class(%SQL.Statement).%ExecDirect(,"SELECT Name FROM %Dictionary.ClassDefinition WHERE Name %STARTSWITH 'HS.FHIRServer' ORDER BY Name")
+  while rs.%Next() {
+    write rs.Name, !
+  }
+  write "---END---", !
+  quit

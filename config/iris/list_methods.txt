@@ -1,0 +1,10 @@
+write "=== List ServiceAdmin Methods ===",!
+set rs = ##class(%Dictionary.MethodDefinition).ExtentFunc()
+while rs.%Next() {
+  set clsName = rs.%Get("parent")
+  set methName = rs.%Get("Name")
+  if clsName = "HS.FHIRServer.ServiceAdmin" {
+    write clsName,".",methName,!
+  }
+}
+halt

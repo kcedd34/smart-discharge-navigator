@@ -1,0 +1,9 @@
+zn "HSLIB"
+write "=== HSLIB data check ===",!
+write "HS.FHIRMeta.Storage.ObjDef exists: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.ObjDef"),!
+write "HS.FHIRMeta.Storage.Package: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.Package"),!
+write "HS.FHIRMeta.Load.NpmLoader: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Load.NpmLoader"),!
+set testobj = ##class(%Persistent).%New()
+write "Global ^HS.FHIRMeta.Storage.PackageD count = ",$data(^HS.FHIRMeta.Storage.PackageD),!
+write "Global exists: ",$order(^HS.FHIRMeta.Storage.PackageD("")),!
+halt

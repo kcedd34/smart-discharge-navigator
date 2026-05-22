@@ -1,0 +1,11 @@
+write "=== Fix SuperUser AutheEnabled ===",!
+set sc = ##class(Security.Users).Get("SuperUser",.props)
+write "Current AutheEnabled: ",props("AutheEnabled"),!
+kill props2
+set props2("AutheEnabled") = 64
+set props2("Password") = "SYS"
+set sc2 = ##class(Security.Users).Modify("SuperUser",.props2)
+write "Modify sc=",sc2,!
+set sc3 = ##class(Security.Users).Get("SuperUser",.props3)
+write "New AutheEnabled: ",props3("AutheEnabled"),!
+halt

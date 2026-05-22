@@ -1,0 +1,14 @@
+write "=== Check current /fhir/r4 app state ===",!
+set sc = ##class(Security.Applications).Get("/fhir/r4",.props)
+write "sc=",sc,!
+write "AutheEnabled=",props("AutheEnabled"),!
+write "Enabled=",props("Enabled"),!
+write "Namespace=",props("NameSpace"),!
+write "=== Try Auth 64+32+2 = 98 ===",!
+kill mods
+set mods("AutheEnabled") = 98
+set sc2 = ##class(Security.Applications).Modify("/fhir/r4",.mods)
+write "Modify sc=",sc2,!
+set sc3 = ##class(Security.Applications).Get("/fhir/r4",.props3)
+write "New AutheEnabled=",props3("AutheEnabled"),!
+halt

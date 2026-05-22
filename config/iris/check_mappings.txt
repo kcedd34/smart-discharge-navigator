@@ -1,0 +1,12 @@
+write "=== FHIRMeta Loading Check ===",!
+write "Test LoadPackage from HSLIB namespace data in HSSYS context",!
+write "Classes mapped from HSLIB to HSSYS:",!
+set stmt = ##class(%SQL.Statement).%New()
+do stmt.%Prepare("SELECT GlobalSubnodes,GlobalReference FROM %Library.PackageMappingDefinition WHERE Nspace='HSSYS' AND Name='HS'")
+set rs = stmt.%Execute()
+for { quit:'rs.%Next()  write rs.GlobalSubnodes," -> ",rs.GlobalReference,! }
+write "---",!
+do stmt.%Prepare("SELECT Name,GlobalReference FROM %Library.PackageMappingDefinition WHERE Nspace='HSSYS' ORDER BY Name")
+rs = stmt.%Execute()
+for { quit:'rs.%Next() write rs.Name," -> ",rs.GlobalReference,! }
+halt

@@ -1,0 +1,25 @@
+write "Step 1: Package mapping...",!
+set sc = ##class(%IPM.Utils.Module).AddPackageMapping("%ALL", "%SYSTEM.Context.HealthShare", "HSLIB")
+write "Mapping sc=",sc,!
+write "Step 2: Package check...",!
+write ##class(HS.FHIRMeta.Load.NpmLoader).IsPackageLoaded("hl7.fhir.r4.core@4.0.1"),!
+write "Step 3: Load FHIR R4 package if needed...",!
+set pkgLoaded = ##class(HS.FHIRMeta.Load.NpmLoader).IsPackageLoaded("hl7.fhir.r4.core@4.0.1")
+if 'pkgLoaded {
+    set sc2 = ##class(HS.FHIRMeta.Load.NpmLoader).importPackages("/usr/irissys/dev/fhir/fhir-metadata/packages/hl7.fhir.r4.core")
+    write "importPackages sc=",sc2,!
+    do $system.Status.DisplayError(sc2)
+}
+write "Step 4: InstallNamespace...",!
+set sc3 = ##class(HS.FHIRServer.Installer).InstallNamespace()
+write "InstallNamespace sc=",sc3,!
+do $system.Status.DisplayError(sc3)
+write "Step 5: EndpointExists check...",!
+write ##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4"),!
+write "Step 6: Installing FHIR endpoint...",!
+set pkgList = $listbuild("hl7.fhir.r4.core@4.0.1")
+set sc = ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", pkgList)
+write "InstallInstance sc=",sc,!
+do $system.Status.DisplayError(sc)
+write "Step 7: Done - EndpointExists:",##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4"),!
+halt

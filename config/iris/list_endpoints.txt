@@ -1,0 +1,6 @@
+write "=== List FHIR Endpoints ===",!
+set rs = ##class(HS.FHIRServer.ServiceAdmin).GetEndpointList()
+write "RS type=",rs,!
+set sc = rs.%Execute()
+write "ExecuteSC=",sc,!
+halt

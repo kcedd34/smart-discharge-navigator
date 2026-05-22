@@ -1,0 +1,10 @@
+write "=== FHIR Service Admin ===",!
+set epList = ##class(HS.FHIRServer.ServiceAdmin).GetEndpointList()
+write "Endpoints: ",epList,!
+set ep = ##class(HS.FHIRServer.ServiceAdmin).GetEndpoint("/fhir/r4")
+write "Endpoint obj: ",ep,!
+write "Enabled: ",ep.Enabled,!
+write "NamespaceDefaultResource: ",ep.NamespaceDefaultResource,!
+write "ServiceName: ",ep.ServiceName,!
+write "FHIRVersion: ",ep.FHIRVersion,!
+halt

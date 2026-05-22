@@ -1,0 +1,13 @@
+zn "HSLIB"
+write "=== HSLIB FHIR Check ===",!
+write "IsPackageLoaded: ",##class(HS.FHIRMeta.Load.NpmLoader).IsPackageLoaded("hl7.fhir.r4.core@4.0.1"),!
+set stmt = ##class(%SQL.Statement).%New()
+do stmt.%Prepare("SELECT COUNT(*) AS cnt FROM HS_FHIRMeta_Storage.ObjDef")
+set rs = stmt.%Execute()
+do rs.%Next()
+write "ObjDef count: ",rs.%Get("cnt"),!
+do stmt.%Prepare("SELECT COUNT(*) AS cnt FROM HS_FHIRMeta_Storage.Package")
+set rs2 = stmt.%Execute()
+do rs2.%Next()
+write "Package count: ",rs2.%Get("cnt"),!
+halt

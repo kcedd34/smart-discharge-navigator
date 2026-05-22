@@ -1,0 +1,10 @@
+write "=== CSP App Check ===",!
+set stmt = ##class(%SQL.Statement).%New()
+do stmt.%Prepare("SELECT Name,AutheEnabled,MatchRoles,RequiredResource FROM Security.Applications WHERE Name LIKE '/fhir%'")
+set rs = stmt.%Execute()
+do rs.%Next()
+write "Name: ",rs.Name,!
+write "AutheEnabled: ",rs.AutheEnabled,!
+write "MatchRoles: ",rs.MatchRoles,!
+write "RequiredResource: ",rs.RequiredResource,!
+halt

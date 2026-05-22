@@ -1,0 +1,6 @@
+write "=== List all FHIR globals ===",!
+set g = ""
+set g = $order(^["HSSYS"]HS.FHIRServer(""))
+write "First global key: ",g,!
+zwrite ^["HSSYS"]HS.FHIRServer
+halt

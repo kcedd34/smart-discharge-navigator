@@ -1,0 +1,9 @@
+zn "HSLIB"
+write "=== Available HS.FHIRMeta classes in HSLIB ===",!
+set stmt = ##class(%SQL.Statement).%New()
+do stmt.%Prepare("SELECT Name FROM %Library.ClassDefinition WHERE Name %STARTSWITH 'HS.FHIRMeta' ORDER BY Name")
+set rs = stmt.%Execute()
+while rs.%Next() {
+    write rs.Name,!
+}
+halt

@@ -1,0 +1,20 @@
+write "=== FHIR Meta Storage Check ===",!
+set stmt = ##class(%SQL.Statement).%New()
+set sc = stmt.%Prepare("SELECT COUNT(*) AS cnt FROM HS_FHIRMeta_Storage.ObjDef")
+if sc {
+    set rs = stmt.%Execute()
+    if rs.%Next() {
+        write "ObjDef count: ",rs.cnt,!
+    }
+} else {
+    write "HS_FHIRMeta_Storage.ObjDef table error",!
+    do $system.Status.DisplayError(sc)
+}
+set sc2 = stmt.%Prepare("SELECT COUNT(*) AS cnt FROM HS_FHIRMeta_Storage.Package")
+if sc2 {
+    set rs2 = stmt.%Execute()
+    if rs2.%Next() {
+        write "Package count: ",rs2.cnt,!
+    }
+}
+halt

@@ -1,0 +1,3 @@
+do $system.OBJ.Load("/tmp/ListFHIRClasses.mac","ck")
+do ^ListFHIRClasses
+halt

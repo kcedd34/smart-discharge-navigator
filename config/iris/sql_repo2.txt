@@ -1,0 +1,22 @@
+write "=== FHIR RepoInstance columns ===",!
+set stmt = ##class(%SQL.Statement).%New()
+set sc = stmt.%Prepare("SELECT * FROM HS_FHIRServer.RepoInstance WHERE serviceId=4")
+set rs = stmt.%Execute()
+set hasRow = rs.%Next()
+write rs.%GetData(1),"|",rs.%GetData(2),"|",rs.%GetData(3),"|",rs.%GetData(4),"|",rs.%GetData(5),"|",rs.%GetData(6),"|",rs.%GetData(7),"|",rs.%GetData(8),"|",rs.%GetData(9),"|",rs.%GetData(10),"|",rs.%GetData(11),!
+write "=== describe columns ===",!
+set stmt2 = ##class(%SQL.Statement).%New()
+set sc2 = stmt2.%Prepare("SELECT TOP 1 * FROM HS_FHIRServer.RepoInstance")
+set meta = stmt2.%Metadata
+write "NumCols=",meta.columns.Count(),!
+set j = 1
+write meta.columns.GetAt(j).colName,!
+set j = 2
+write meta.columns.GetAt(j).colName,!
+set j = 3
+write meta.columns.GetAt(j).colName,!
+set j = 4
+write meta.columns.GetAt(j).colName,!
+set j = 5
+write meta.columns.GetAt(j).colName,!
+halt

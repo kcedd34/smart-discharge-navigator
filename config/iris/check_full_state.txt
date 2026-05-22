@@ -1,0 +1,15 @@
+write "=== CSP App /fhir/r4 details ===",!
+set app = ##class(Security.Applications).%OpenId("/fhir/r4")
+write "Name: ",app.Name,!
+write "Path: ",app.Path,!
+write "Namespace: ",app.NameSpace,!
+write "AutheEnabled: ",app.AutheEnabled,!
+write "DispatchClass: ",app.DispatchClass,!
+write "Enabled: ",app.Enabled,!
+write "Type: ",app.Type,!
+write "MatchRoles: ",app.MatchRoles,!
+write "Resource: ",app.Resource,!
+write "=== InteractionsStrategy ===",!
+set strat = ##class(HS.FHIRServer.Storage.Json.InteractionsStrategy).getInstance("/fhir/r4")
+write "Strategy: ",strat,!
+halt

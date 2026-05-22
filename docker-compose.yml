@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # InterSystems IRIS for Health Community Edition
+  iris:
+    image: intersystemsdc/irishealth-community:latest
+    container_name: smart-discharge-iris
+    ports:
+      - "52773:52773"  # Management Portal
+      - "1972:1972"    # SuperServer
+    environment:
+      - ISC_CPF_MERGE_FILE=/tmp/merge.cpf
+    volumes:
+      - ./config/iris/merge.cpf:/tmp/merge.cpf:ro
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(5); r=s.connect_ex(('localhost',52773)); s.close(); exit(0 if r==0 else 1)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 180s
+    networks:
+      - smart-discharge-network
+
+  # Backend API (FastAPI + Python + AI Agent)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-discharge-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FHIR_BASE_URL=http://iris:52773/fhir/r4
+      - IRIS_USERNAME=SuperUser
+      - IRIS_PASSWORD=SYS
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:3001"]
+      # AI Agent Configuration (OpenAI GPT-4)
+      # Set OPENAI_API_KEY to enable AI Agent features.
+      # Without it, the system runs in rule-based fallback mode.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-gpt-4o}
+      - AI_ENABLED=${AI_ENABLED:-true}
+    depends_on:
+      - iris
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - smart-discharge-network
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-discharge-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+    networks:
+      - smart-discharge-network
+
+networks:
+  smart-discharge-network:
+    driver: bridge

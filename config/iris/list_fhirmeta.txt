@@ -1,0 +1,8 @@
+write "=== FHIRMeta classes in HSSYS ===",!
+set stmt = ##class(%SQL.Statement).%New()
+do stmt.%Prepare("SELECT Name FROM %Dictionary.ClassDefinition WHERE Name LIKE 'HS.FHIRMeta%' ORDER BY Name")
+set rs = stmt.%Execute()
+while rs.%Next() {
+    write rs.Name,!
+}
+halt
