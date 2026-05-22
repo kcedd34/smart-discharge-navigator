@@ -153,7 +153,7 @@ echo ""
 echo "🤖 Checking AI Agent status..."
 AI_STATUS=$(curl -s http://localhost:8000/api/v1/ai/status 2>/dev/null)
 if echo "$AI_STATUS" | grep -q '"ai_available":true'; then
-    echo "✅ AI Agent is ACTIVE (GPT-4 ready)"
+    echo "✅ AI Agent is ACTIVE (GPT-4o ready)"
 else
     echo "⚠️  AI Agent is in FALLBACK MODE (rule-based only)"
     echo "   Set OPENAI_API_KEY to enable AI features."
@@ -273,7 +273,7 @@ echo ""
 echo "🤖 Checking AI Agent status..."
 AI_STATUS=$(curl -s http://localhost:8000/api/v1/ai/status 2>/dev/null)
 if echo "$AI_STATUS" | grep -q '"ai_available":true'; then
-    echo "✅ AI Agent is ACTIVE (GPT-4 ready)"
+    echo "✅ AI Agent is ACTIVE (GPT-4o ready)"
 else
     echo "⚠️  AI Agent is in FALLBACK MODE (rule-based only)"
     echo "   Set OPENAI_API_KEY to enable AI features."

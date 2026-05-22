@@ -477,7 +477,7 @@ Response:
 | `GET` | `/api/v1/patients/{id}/risk-assessment` | Rule-based risk assessment |
 | `POST` | `/api/v1/patients/{id}/discharge-plan` | Generate rule-based discharge plan |
 | `GET` | `/api/v1/statistics` | Population statistics |
-| `GET` | `/api/v1/patients/{id}/summary?role=` | Role-based AI patient summary (doctor/patient/caregiver/care_manager) |
+| `GET` | `/api/v1/patients/{id}/summary?role=` | Role-based AI patient summary (doctor/ed_doctor/patient/caregiver/family/care_manager) |
 | `POST` | `/api/v1/ai/nl-to-sql` | Natural language to SQL query translation |
 | `GET` | `/api/v1/analytics/sql-stats` | FHIR SQL Builder analytics stats |
 | `GET` | `/api/v1/analytics/readmission-sql` | SQL-based readmission analytics |
@@ -876,7 +876,7 @@ The React frontend includes a dedicated **Analytics Dashboard** tab that visuali
 ## 🛠️ Technology Stack
 
 ### AI Layer
-- **LLM**: OpenAI GPT-4 (clinical reasoning engine)
+- **LLM**: OpenAI GPT-4o (clinical reasoning engine)
 - **Client**: OpenAI Python SDK (async)
 - **Prompt Engineering**: Structured clinical prompts with FHIR data context
 
