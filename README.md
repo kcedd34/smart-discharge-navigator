@@ -2,114 +2,140 @@
 
 **AI-Powered Clinical Reasoning Agent for Hospital Readmission Risk Assessment**
 
-*Hybrid Intelligence: LLM-based Clinical Insights + Evidence-based Rule Engine*
-
 [![InterSystems Contest](https://img.shields.io/badge/InterSystems-AI%20Agents%20for%20FHIR%202026-blue)](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-fhir)
 [![Task](https://img.shields.io/badge/Contest%20Task-%239%20Hospital%20Readmission%20Risk-green)](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-fhir)
 [![AI Agent](https://img.shields.io/badge/AI%20Agent-OpenAI%20GPT--4o-blueviolet)](https://openai.com/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4-orange)](https://www.hl7.org/fhir/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Author](https://img.shields.io/badge/Author-Carlos%20Eduardo%20Dias%20Duarte-informational)](mailto:kcedd34@gmail.com)
-[![GitHub](https://img.shields.io/badge/GitHub-kcedd34%2Fsmart--discharge--navigator-181717?logo=github)](https://github.com/kcedd34/smart-discharge-navigator)
+
+**Author**: Carlos Eduardo Dias Duarte | **Email**: kcedd34@gmail.com | **GitHub**: [@kcedd34](https://github.com/kcedd34/smart-discharge-navigator)
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# 1. Clone repository
+git clone https://github.com/kcedd34/smart-discharge-navigator.git
+cd smart-discharge-navigator
+
+# 2. (Optional) Enable AI features - create .env file
+echo "OPENAI_API_KEY=sk-your-key-here" > .env
+echo "AI_MODEL=gpt-4o" >> .env
+
+# 3. Start application (automated script)
+chmod +x start.sh
+./start.sh
+
+# 4. Access
+# - Frontend: http://localhost:3000
+# - Backend API: http://localhost:8000/docs
+# - IRIS Portal: http://localhost:52773/csp/sys/UtilHome.csp (SuperUser/SYS)
+```
+
+**Windows Users** (or if `start.sh` fails):
+```bash
+# Start containers
+docker-compose up -d
+
+# Wait 60 seconds for IRIS initialization
+sleep 60
+
+# Install FHIR endpoint (interactive terminal)
+docker exec -it smart-discharge-iris iris session IRIS
+# Then paste the commands from Step 5 below and wait for completion
+
+# Configure CSP gateway
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
+
+# Load sample data (from backend container)
+docker cp data/load_sample_data.py smart-discharge-backend:/app/
+docker exec smart-discharge-backend pip install requests
+docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /app/load_sample_data.py
+```
+
+**Note**: Without `OPENAI_API_KEY`, the system runs in rule-based mode (fully functional, no AI features).
 
 ---
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [What Makes This an AI Agent?](#-what-makes-this-an-ai-agent)
-- [AI Agent Features](#-ai-agent-features)
-- [AI Agent Architecture](#-ai-agent-architecture)
-- [Contest Alignment](#-contest-alignment)
-- [Features](#-features)
-- [Risk Assessment Algorithm](#-risk-assessment-algorithm)
-- [API Documentation](#-api-documentation)
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
-- [Environment Variables](#-environment-variables)
 - [Usage](#-usage)
-- [FHIR Resources](#-fhir-resources)
+- [API Reference](#-api-reference)
+- [Contest Alignment](#-contest-alignment)
 - [Technology Stack](#-technology-stack)
-- [Development](#-development)
-- [Demo Video](#-demo-video)
-- [License](#-license)
+- [Troubleshooting](#-troubleshooting)
+- [Appendix](#-appendix)
 
 ---
 
 ## 🎯 Overview
 
-**Smart Discharge Navigator** is a **true AI Agent for FHIR** that combines LLM-powered clinical reasoning (OpenAI GPT-4) with evidence-based rule scoring to tackle one of healthcare's most critical challenges: **hospital readmissions**.
+**Smart Discharge Navigator** tackles hospital readmissions ($17B annual cost in US) through a **hybrid AI Agent + rule-based system** that:
 
-The AI Agent:
-- **Reads and reasons** over FHIR patient data (encounters, conditions, medications, vitals)
-- **Engages in clinical dialogue** through a conversational chat interface
-- **Generates contextual insights** that go beyond fixed rules — identifying non-obvious risk factors
-- **Produces personalized discharge plans** with clinical reasoning explanations
-- **Compares and triages** multiple patients using AI-powered risk ranking
+- Analyzes FHIR patient data (Patient, Encounter, Condition, MedicationRequest, Observation, AllergyIntolerance)
+- Provides **AI-powered clinical reasoning** (GPT-4o) with explainable insights
+- Falls back to **deterministic rule-based scoring** when AI unavailable
+- Generates personalized discharge plans as FHIR CarePlan + Task resources
+- Supports **conversational clinical queries** through AI chat interface
 
-### The Problem
+### Hybrid Architecture
 
-- **$17 billion** lost annually in the US due to preventable hospital readmissions
-- **20%** of readmissions are preventable with proper discharge planning
-- Hospital Readmission Reduction Program (HRRP) penalties cost hospitals millions
-- Traditional rule-based systems miss nuanced, patient-specific risk factors
+| Layer | Purpose | When Used |
+|-------|---------|-----------|
+| **AI Agent (GPT-4o)** | Deep clinical reasoning, identifies non-obvious risks, conversational interface | When `OPENAI_API_KEY` configured |
+| **Rule-Based Engine** | Evidence-based deterministic scoring (6 factors weighted) | Always (provides baseline + fallback) |
 
-### The Solution — Hybrid Intelligence
-
-Smart Discharge Navigator provides a **two-layer approach**:
-
-1. **🤖 AI Agent Layer (Primary)** — GPT-4-powered clinical reasoning that analyzes FHIR data, explains its thinking, and identifies risks that rules alone miss
-2. **📊 Rule-Based Engine (Baseline)** — Deterministic, evidence-based scoring providing a reliable safety net and benchmark
-
-This hybrid design ensures **accurate, explainable, and safe** clinical decision support.
+**Key Differentiator**: AI Agent identifies risks missed by rules (medication interactions, comorbidity patterns, social determinants) while maintaining explainable step-by-step reasoning.
 
 ---
 
-## ✨ What Makes This an AI Agent?
+## ✨ Key Features
 
-This project implements a **genuine AI Agent** — not just a rule engine with "AI" branding. Here's the concrete difference:
+### AI Agent Capabilities (when enabled)
 
-| Aspect | Before (Rule-based only) | After (AI Agent + Rules) |
-|--------|--------------------------|--------------------------|
-| **Analysis** | Fixed scoring algorithm | LLM-powered clinical reasoning |
-| **Output** | Deterministic numeric scores | Contextual explanations + scores |
-| **Reasoning** | No reasoning explanation | Step-by-step clinical reasoning |
-| **Risk Detection** | Limited to predefined rules | Identifies non-obvious risk factors |
-| **Interaction** | Static dashboard only | Conversational chat interface |
-| **Discharge Plans** | Template-based | Personalized, AI-generated narratives |
-| **Patient Comparison** | Sort by score | AI-powered triage with rationale |
-| **Adaptability** | Same output for same inputs | Context-aware, nuanced analysis |
+| Feature | Description |
+|---------|-------------|
+| **AI Clinical Chat** | Conversational interface for patient queries with FHIR data context |
+| **AI Risk Analysis** | LLM-powered assessment with step-by-step clinical reasoning |
+| **AI Discharge Plans** | Personalized, AI-generated discharge narratives |
+| **AI Patient Comparison** | Multi-patient triage with AI prioritization rationale |
+| **Graceful Degradation** | Auto-fallback to rule-based mode when AI unavailable |
 
-### Why "AI Agent" and not just "AI"?
+### Rule-Based Baseline (always available)
 
-The system acts as an **autonomous clinical reasoning agent** that:
+- **Multi-Factor Risk Scoring**: 6 weighted factors (admissions, conditions, medications, age, follow-up, vitals)
+- **Risk Stratification**: HIGH (≥70%) / MODERATE (40-69%) / LOW (<40%)
+- **Automated Discharge Plans**: Template-based FHIR CarePlan + Task generation
+- **Population Dashboard**: Patient list sorted by risk with statistics
 
-1. **Perceives** — Gathers and reads multi-resource FHIR patient data
-2. **Reasons** — Applies clinical knowledge via LLM to interpret data patterns
-3. **Acts** — Generates risk assessments, discharge plans, and triage recommendations
-4. **Communicates** — Engages in natural language dialogue about patients
-5. **Falls back gracefully** — Operates in rule-based mode when AI is unavailable
+### Technical Features
+
+- **FHIR R4 Compliance**: Full read/write with InterSystems IRIS for Health
+- **FHIR SQL Builder**: SQL analytics over FHIR resource projections
+- **Interactive API Docs**: Swagger UI with all endpoints documented
+- **React Dashboard**: Tabbed UI (Dashboard + AI Chat + Analytics)
 
 ---
 
-## 🤖 AI Agent Features
+## 📦 Prerequisites
 
-### 1. AI Clinical Chat Interface
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Docker** | 20.10+ | Allocate **minimum 6 GB RAM** to Docker |
+| **Docker Compose** | 2.0+ | |
+| **Python** | 3.8+ | For sample data loading script |
+| **Git** | Latest | |
+| **OpenAI API Key** | - | **Optional** - enables AI features |
 
-A conversational interface where clinicians can ask questions about patients and receive AI-powered responses grounded in FHIR data.
+> **Critical**: InterSystems IRIS requires significant memory. Ensure Docker has at least 6 GB RAM allocated (Docker Desktop → Settings → Resources).
 
-**Example interactions:**
-- *"What are the main readmission risk factors for this patient?"*
-- *"Should I be concerned about medication interactions?"*
-- *"Compare readmission risk across my ICU patients"*
-- *"Generate a discharge plan focusing on cardiac care"*
-
-The chat maintains conversation history, supports patient context switching, and suggests clinically relevant questions.
-
-### 2. AI-Powered Patient Analysis
-
-Performs deep clinical analysis using GPT-4:
-
-- **Hybrid risk scoring**: AI confidence score alongside rule-based score
+---
 - **Step-by-step reasoning**: Shows the AI's clinical reasoning process
 - **Key insights**: AI-identified risk factors and clinical observations
 - **Missed risks**: Flags risks that the rule-based engine alone would not catch
@@ -122,377 +148,452 @@ Generates comprehensive, personalized discharge plans using LLM reasoning:
 - Medication reconciliation with interaction awareness
 - Follow-up scheduling based on clinical priorities
 - Patient-friendly instructions in plain language
-- Risk-specific interventions and precautions
+## 🚀 Installation
 
-### 4. Multi-Patient AI Comparison
+### Method 1: Automated Script (Recommended)
 
-Compares multiple patients simultaneously for triage prioritization:
+```bash
+git clone https://github.com/kcedd34/smart-discharge-navigator.git
+cd smart-discharge-navigator
 
-- **Risk ranking**: AI-ordered list by clinical urgency
-- **Common risk factors**: Shared patterns across patients
-- **Unique concerns**: Patient-specific flags
-- **Triage recommendation**: AI-generated prioritization rationale
+# Optional: enable AI features
+echo "OPENAI_API_KEY=sk-your-key-here" > .env
+echo "AI_MODEL=gpt-4o" >> .env
 
-### 5. Graceful Degradation
+# Start everything
+chmod +x start.sh
+./start.sh
+```
 
-When `OPENAI_API_KEY` is not configured or the AI service is unavailable:
+The script automatically:
+1. Starts Docker containers
+2. Waits for IRIS health check
+3. Installs FHIR R4 endpoint (`/fhir/r4`)
+4. Configures CSP gateway routing
+5. Sets up authentication
+6. Loads 8 sample patients
 
-- System automatically falls back to **rule-based mode**
-- All core features remain functional
-- UI clearly indicates "AI Fallback" status
-- No disruption to clinical workflows
+**Access Points**:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000/docs
+- IRIS Portal: http://localhost:52773/csp/sys/UtilHome.csp (SuperUser/SYS)
+- FHIR Endpoint: http://localhost:52773/fhir/r4/metadata
 
 ---
 
-## 🏗️ AI Agent Architecture
+### Method 2: Manual Installation
 
-### System Architecture with AI Layer
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Frontend (React 18)                         │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
-│  │ Patient Dashboard│  │ AI Chat Interface │  │ AI Comparison │ │
-│  │ + AI Analysis    │  │ + Context Select  │  │ + Triage View │ │
-│  └────────┬────────┘  └────────┬─────────┘  └──────┬────────┘ │
-└───────────┼─────────────────────┼───────────────────┼──────────┘
-            │ REST API            │                    │
-┌───────────┴─────────────────────┴───────────────────┴──────────┐
-│              Backend API (FastAPI / Python)                     │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  API Layer (routes.py)                                   │   │
-│  │  /ai/chat  /ai/status  /ai/compare-patients              │   │
-│  │  /patients/{id}/ai-analysis  /patients/{id}/ai-discharge │   │
-│  └──────────┬──────────────────────────────────┬───────────┘   │
-│             │                                   │               │
-│  ┌──────────┴──────────┐  ┌────────────────────┴───────────┐  │
-│  │  🤖 AI Agent Service │  │  📊 Rule-Based Services        │  │
-│  │  (ai_agent_service)  │  │  (risk_calculator,             │  │
-│  │  - LLM Reasoning     │  │   care_plan_generator,         │  │
-│  │  - Prompt Engineering│  │   fhir_service)                │  │
-│  │  - Chat Management   │  │  - Deterministic Scoring       │  │
-│  │  - FHIR Data Gather  │  │  - Template Plans              │  │
-│  └──────────┬──────────┘  └────────────────────┬───────────┘  │
-│             │                                   │               │
-│  ┌──────────┴───────────────────────────────────┴───────────┐  │
-│  │  Core Layer                                               │  │
-│  │  - FHIR Client (HTTP) · Configuration · OpenAI Client     │  │
-│  └──────────────────────────┬────────────────────────────────┘  │
-└─────────────────────────────┼───────────────────────────────────┘
-          FHIR API (HTTP)     │          OpenAI API (HTTPS)
-┌─────────────────────────────┴────────┐  ┌────────────────────┐
-│  InterSystems IRIS for Health        │  │  OpenAI GPT-4      │
-│  - FHIR Server (R4)                 │  │  - Clinical LLM    │
-│  - Resource Storage                  │  │  - Chat Completion │
-│  - FHIR SQL Builder                 │  │  - Reasoning Engine │
-└──────────────────────────────────────┘  └────────────────────┘
+#### Step 1: Clone Repository
+```bash
+git clone https://github.com/kcedd34/smart-discharge-navigator.git
+cd smart-discharge-navigator
 ```
 
-### AI Agent Interaction Flow
-
-```
-User Question ──► AI Agent Service
-                      │
-                      ├── 1. Gather FHIR Data (Patient, Encounters,
-                      │      Conditions, Medications, Observations)
-                      │
-                      ├── 2. Build Clinical Context Prompt
-                      │      (structured patient summary + clinical rules)
-                      │
-                      ├── 3. Call GPT-4 with System + User prompts
-                      │
-                      ├── 4. Parse LLM Response
-                      │      (risk level, insights, reasoning, recommendations)
-                      │
-                      └── 5. Return Hybrid Result
-                             (AI analysis + rule-based baseline for comparison)
+#### Step 2: Configure AI (Optional)
+Create `.env` file in project root:
+```bash
+OPENAI_API_KEY=sk-your-key-here
+AI_MODEL=gpt-4o
+AI_ENABLED=true
 ```
 
-### Graceful Degradation Flow
+> **Important**: Use `gpt-4o` or `gpt-4-turbo`. Base `gpt-4` lacks JSON mode support and will fall back to rule-based mode.
 
+#### Step 3: Start Containers
+```bash
+docker-compose up -d
 ```
-Request ──► Check AI Availability
-                │
-          ┌─────┴──────┐
-          │ AI Available│ ──► Full AI Analysis + Rule-based baseline
-          └─────┬──────┘
-                │ No
-                ▼
-          Rule-based Fallback ──► Deterministic scoring only
-          (UI shows "Fallback" badge)
+
+This starts 3 services:
+- **IRIS for Health** (port 52773)
+- **Backend API** (port 8000)
+- **Frontend** (port 3000)
+
+#### Step 4: Wait for IRIS Initialization
+```bash
+# Wait until health check passes (2-5 minutes)
+docker inspect --format='{{.State.Health.Status}}' smart-discharge-iris
+# Should output: healthy
 ```
+
+#### Step 5: Install FHIR R4 Endpoint
+
+**Critical first-run step**. The FHIR endpoint is not pre-configured.
+
+**Open interactive IRIS terminal:**
+```bash
+docker exec -it smart-discharge-iris iris session IRIS
+```
+
+**Inside IRIS terminal, copy and paste ALL commands below:**
+```objectscript
+// Unexpire passwords (development only)
+set $NAMESPACE = "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+
+// Create FHIRSERVER namespace
+set $NAMESPACE = "HSLIB"
+do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
+
+// Install FHIR R4 endpoint
+set $NAMESPACE = "FHIRSERVER"
+do ##class(HS.FHIRServer.Installer).InstallNamespace()
+do ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", "hl7.fhir.r4.core@4.0.1")
+
+// Configure search limits
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint("/fhir/r4")
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+
+write "FHIR installed at /fhir/r4",!
+
+halt
+```
+
+**Wait 3-8 minutes** for FHIR package download and class compilation. You'll see progress messages.
+
+#### Step 6: Configure CSP Gateway & Authentication
+
+**Required** to enable HTTP access to `/fhir/r4/*` endpoints.
+
+**Copy and run setup script:**
+```bash
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
+```
+
+This script:
+1. Adds `/fhir` to CSP gateway routing table
+2. Configures SuperUser for HTTP Basic auth
+3. Restarts embedded httpd server
+
+**Verify FHIR endpoint**:
+```bash
+curl http://localhost:52773/fhir/r4/metadata
+# Should return JSON CapabilityStatement
+```
+
+#### Step 7: Load Sample Data
+
+The script must run from inside the backend container to access the Docker network:
+
+```bash
+# Copy script to backend container
+docker cp data/load_sample_data.py smart-discharge-backend:/app/
+
+# Install requests library (if not already installed)
+docker exec smart-discharge-backend pip install requests
+
+# Execute script with correct FHIR URL
+docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /app/load_sample_data.py
+```
+
+Creates 8 synthetic patients:
+- 3 HIGH risk (elderly, multiple comorbidities, multiple allergies)
+- 3 MODERATE risk (2 chronic conditions)
+- 2 LOW risk (single condition, younger)
+
+---
+
+### Restarting After Stop
+
+If containers **stopped** (not destroyed):
+
+```bash
+docker-compose start
+
+# Re-apply CSP gateway config (ephemeral, must re-run after restart)
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
+```
+
+If containers **destroyed** (`docker-compose down`): repeat full installation (Steps 3-7).
+
+---
+
+## 📖 Usage
+
+### 1. Dashboard (Rule-Based Baseline)
+
+**Access**: http://localhost:3000
+
+- View all patients sorted by risk score
+- Click **"View Risk"** for detailed factor breakdown
+- Click **"Generate Plan"** for template-based discharge plan
+
+### 2. AI Clinical Chat
+
+**Navigate**: Click **"🤖 AI Chat"** tab
+
+1. Select patient from sidebar (optional - for patient-specific queries)
+2. Type question or click suggested question
+3. View AI response with FHIR sources cited
+
+**Example Questions**:
+- "What are the main readmission risk factors for this patient?"
+- "Compare readmission risk across all ICU patients"
+- "Should I be concerned about medication interactions?"
+
+### 3. AI Patient Analysis
+
+**From Dashboard**: Click **"🤖 AI Analysis"** on any patient
+
+View:
+- Side-by-side AI vs Rule-based scores
+- Step-by-step AI reasoning
+- Risks missed by rule-based engine
+- AI recommendations
+
+### 4. AI Discharge Planning
+
+**From Dashboard**: Click **"🤖 AI Discharge Plan"** on any patient
+
+Generates personalized plan including:
+- Medication reconciliation with interaction awareness
+- Follow-up scheduling based on clinical priorities
+- Patient-friendly instructions
+- Risk-specific interventions
+
+### 5. Multi-Patient Comparison
+
+1. Enable **"Compare Patients"** mode in dashboard
+2. Select 2+ patients (checkboxes)
+3. Click **"AI Compare"**
+4. View AI triage ranking with rationale
+
+---
+
+## 📡 API Reference
+
+**Base URL**: `http://localhost:8000/api/v1`
+
+**Interactive Docs**: http://localhost:8000/docs
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/patients` | List all patients with risk scores |
+| `GET` | `/patients/{id}` | Get patient details |
+| `GET` | `/patients/{id}/risk-assessment` | Rule-based risk assessment |
+| `POST` | `/patients/{id}/discharge-plan` | Generate discharge plan (creates FHIR CarePlan + Tasks) |
+| `GET` | `/statistics` | Population statistics |
+
+### AI Agent Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/ai/status` | Check AI availability |
+| `POST` | `/ai/chat` | Clinical chat with patient context |
+| `GET` | `/patients/{id}/ai-analysis` | AI-powered risk analysis |
+| `POST` | `/patients/{id}/ai-discharge-plan` | AI-generated discharge plan |
+| `POST` | `/ai/compare-patients` | Multi-patient AI triage |
+
+### Analytics Endpoints (FHIR SQL Builder)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/analytics/sql-stats` | Population analytics via SQL |
+| `GET` | `/analytics/readmission-sql` | Readmission candidates (SQL-based) |
+| `GET` | `/analytics/sql-builder-info` | FHIR SQL Builder feature info |
 
 ---
 
 ## 🏆 Contest Alignment
 
-### InterSystems Programming Contest: AI Agents for FHIR 2026
-
+**InterSystems Programming Contest: AI Agents for FHIR 2026**  
 **Contest Task**: #9 — Hospital Readmission Risk Workbench
 
-#### Requirements — ALL MET ✅
+### Requirements
 
-| Requirement | Status | Implementation |
-|-------------|--------|----------------|
-| **AI Agent for FHIR** | ✅ **TRUE AI AGENT** | GPT-4 LLM with clinical reasoning over FHIR data |
-| **FHIR Resources** | ✅ | Patient, Encounter, Condition, Observation, MedicationRequest, AllergyIntolerance, CarePlan, Task |
-| **Platform Features** | ✅ | FHIR API, FHIR SQL Builder, AI Hub (LLM integration) |
-| **MVP Criteria** | ✅ | Rule-based + AI risk scoring, Task-based interventions |
-| **Conversational AI** | ✅ | Chat interface with patient context and clinical dialogue |
-| **Explainable AI** | ✅ | Step-by-step reasoning, insight attribution, confidence scores |
+| Requirement | Implementation |
+|-------------|----------------|
+| **AI Agent for FHIR** | ✅ GPT-4o LLM with clinical reasoning over FHIR R4 data |
+| **FHIR Resources** | ✅ Patient, Encounter, Condition, Observation, MedicationRequest, AllergyIntolerance, CarePlan, Task |
+| **Platform Features** | ✅ FHIR API, FHIR SQL Builder, AI Hub pattern (OpenAI-compatible) |
+| **MVP Criteria** | ✅ Rule-based + AI scoring, FHIR Task generation, discharge plans |
+| **Conversational AI** | ✅ Chat interface with patient context switching |
+| **Explainable AI** | ✅ Step-by-step reasoning, confidence scores, risk attribution |
 
-#### Nice Twists 🎯
-
-- **Hybrid Intelligence**: AI Agent + Rule Engine working together
-- **Multi-patient triage**: AI-powered comparison and prioritization
-- **Graceful degradation**: Works without API key (rule-based fallback)
-- **Risk gap detection**: AI identifies what rules miss
-- **Population health dashboard** with AI status monitoring
-
----
-
-## ✨ Features
-
-### Primary: AI-Powered Clinical Analysis
-
-| Feature | Description |
-|---------|-------------|
-| **AI Clinical Chat** | Conversational interface for clinical queries about patients |
-| **AI Risk Analysis** | LLM-powered deep analysis with reasoning steps |
-| **AI Discharge Plans** | Personalized, AI-generated discharge narratives |
-| **AI Patient Comparison** | Multi-patient triage with AI prioritization |
-| **AI Status Monitoring** | Real-time AI availability indicator in UI |
-
-### Baseline: Evidence-Based Rule Engine
-
-| Feature | Description |
-|---------|-------------|
-| **Multi-Factor Risk Scoring** | 6-factor weighted algorithm (admissions, conditions, medications, age, follow-up, vitals) |
-| **Risk Stratification** | HIGH (≥70%) / MODERATE (40-69%) / LOW (<40%) |
-| **Automated Discharge Plans** | Template-based FHIR CarePlan + Task generation |
-| **Clinical Dashboard** | Patient list sorted by risk, population statistics |
-| **FHIR Compliance** | Full R4 read/write with InterSystems IRIS |
-
-### Dashboard & UI
-
-- **Tabbed navigation**: Dashboard view + AI Chat view
-- **AI Analysis modal**: Side-by-side rule-based vs AI comparison
-- **Score comparison cards**: Visual comparison of AI vs rule-based scores
-- **Reasoning steps display**: Transparent AI decision process
-- **Missed risks panel**: Risks caught by AI but not by rules
-- **Patient context selector**: Choose patient context for chat
-- **Suggested questions**: Clinically relevant quick-start queries
+### Differentiators
+- **Hybrid Intelligence**: AI Agent + rule engine working together
+- **Graceful Degradation**: Full functionality without API key (rule-based fallback)
+- **Risk Gap Detection**: AI identifies what rules miss
+- **Multi-patient Triage**: AI-powered comparison for discharge prioritization
+- **FHIR SQL Analytics**: Leverages IRIS SQL Builder for population insights
 
 ---
 
-## 🧮 Risk Assessment Algorithm
+## 🛠️ Technology Stack
 
-### Hybrid Approach
+### Backend
+- **Language**: Python 3.11
+- **Framework**: FastAPI (async REST API)
+- **AI**: OpenAI Python SDK (GPT-4o)
+- **FHIR Client**: httpx + custom wrapper
+- **Validation**: Pydantic v2
 
-The system uses a **two-layer** risk assessment:
+### Frontend
+- **Framework**: React 18
+- **HTTP Client**: Axios
+- **UI**: Custom CSS with responsive design
 
-1. **Rule-Based Score** — Deterministic, weighted factor calculation
-2. **AI Agent Score** — LLM analysis with clinical reasoning
+### FHIR Server
+- **Platform**: InterSystems IRIS for Health Community Edition
+- **FHIR Version**: R4
+- **Container**: `intersystemsdc/irishealth-community:latest`
 
-Both scores are presented side-by-side for clinical transparency.
-
-### Rule-Based Risk Score Calculation
-
-```python
-risk_score = Σ (factor_value × factor_weight)
-```
-
-#### Risk Factors
-
-| Factor | Weight | Description |
-|--------|--------|-------------|
-| Recent Admissions | 25% | Hospitalizations in last 6 months |
-| High-Risk Conditions | 20% | Heart failure, COPD, diabetes, CKD |
-| Polypharmacy | 15% | Number of active medications |
-| Age Factor | 15% | Increased risk for elderly patients |
-| Follow-up Adherence | 15% | Gaps in care continuity |
-| Abnormal Vital Signs | 10% | Recent concerning measurements |
-
-#### Risk Stratification
-
-| Level | Threshold | Action |
-|-------|-----------|--------|
-| **HIGH** | ≥ 70% | Intensive discharge support, follow-up within 7 days |
-| **MODERATE** | 40–69% | Standard discharge protocol, follow-up within 14 days |
-| **LOW** | < 40% | Basic discharge instructions, follow-up within 30 days |
-
-### AI Agent Enhancement
-
-The AI Agent adds value beyond rule-based scoring by:
-
-- Identifying **comorbidity interactions** not captured by individual risk factors
-- Detecting **social/behavioral risk patterns** from clinical notes context
-- Providing **clinical reasoning explanations** for each risk assessment
-- Flagging **risks that rules miss** (e.g., medication interaction risks, psychosocial factors)
-- Generating **confidence scores** reflecting certainty of AI analysis
+### Infrastructure
+- **Orchestration**: Docker Compose 3.8
+- **Containers**: 3 services (IRIS, Backend, Frontend)
 
 ---
 
-## 📡 API Documentation
+## 🚦 Troubleshooting
 
-### Base URL
+### FHIR Endpoint Issues
 
-```
-http://localhost:8000/api/v1
-```
+#### 404 - "CSP application path not in CSP gateway"
 
-### AI Agent Endpoints 🤖
+**Most common issue on fresh install**. The embedded httpd doesn't know about `/fhir` routes.
 
-#### AI Status Check
-```http
-GET /api/v1/ai/status
-```
-
-Response:
-```json
-{
-  "ai_available": true,
-  "model": "gpt-4o",
-  "features": {
-    "chat": true,
-    "patient_analysis": true,
-    "discharge_planning": true,
-    "patient_comparison": true
-  },
-  "mode": "ai-powered"
-}
+**Fix**:
+```bash
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
-#### AI Clinical Chat
-```http
-POST /api/v1/ai/chat
+**Verify**:
+```bash
+curl http://localhost:52773/fhir/r4/metadata
+# Should return 200 with CapabilityStatement
 ```
 
-Request:
-```json
-{
-  "message": "What are the main readmission risk factors for this patient?",
-  "patient_id": "patient-001",
-  "conversation_history": []
-}
+#### 404 - FHIR Endpoint Not Installed
+
+Endpoint was never installed (first run or after `docker-compose down`).
+
+**Fix** - Open interactive IRIS terminal:
+```bash
+docker exec -it smart-discharge-iris iris session IRIS
 ```
 
-Response:
-```json
-{
-  "response": "Based on the FHIR data for this patient, the key readmission risk factors are...",
-  "sources": ["Patient", "Encounter", "Condition", "MedicationRequest"],
-  "patient_ids_referenced": ["patient-001"],
-  "confidence": 0.87,
-  "ai_powered": true
-}
+**Paste these commands inside IRIS:**
+```objectscript
+set $NAMESPACE = "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+set $NAMESPACE = "HSLIB"
+do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
+set $NAMESPACE = "FHIRSERVER"
+do ##class(HS.FHIRServer.Installer).InstallNamespace()
+do ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", "hl7.fhir.r4.core@4.0.1")
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint("/fhir/r4")
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+write "FHIR installed",!
+halt
 ```
 
-#### AI Patient Analysis
-```http
-GET /api/v1/patients/{patient_id}/ai-analysis
+**Wait 3-8 minutes, then configure gateway:**
+```bash
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
-Response:
-```json
-{
-  "patient_id": "1",
-  "patient_name": "Barbara Miller",
-  "ai_risk_level": "HIGH",
-  "ai_confidence_score": 0.85,
-  "rule_based_score": 0.76,
-  "ai_insights": [
-    "Multiple cardiac comorbidities increase interaction risk",
-    "Recent admission pattern suggests inadequate discharge planning"
-  ],
-  "reasoning_steps": [
-    {
-      "step": 1,
-      "action": "Reviewed encounter history",
-      "finding": "3 admissions in 6 months",
-      "clinical_relevance": "Strong predictor of readmission"
-    }
-  ],
-  "recommendations": [
-    "Cardiac rehabilitation program referral",
-    "Home health nursing for medication management"
-  ],
-  "risks_missed_by_rules": [
-    "Potential medication interaction between metformin and contrast agents"
-  ],
-  "analysis_timestamp": "2026-05-22T19:07:08.319427",
-  "model_used": "gpt-4o"
-}
+#### 500 - "PROPERTY DOES NOT EXIST"
+
+FHIR search index classes not fully generated during installation.
+
+**Fix** - reinstall FHIR endpoint (use interactive method above).
+
+#### 401 Unauthorized on POST Requests
+
+Write operations require authentication. Backend handles this automatically. For manual testing:
+```bash
+curl -u SuperUser:SYS -X POST http://localhost:52773/fhir/r4/Patient \
+  -H "Content-Type: application/fhir+json" \
+  -d '{"resourceType":"Patient","name":[{"family":"Test"}]}'
 ```
-
-#### AI Patient Comparison
-```http
-POST /api/v1/ai/compare-patients
-```
-
-Request:
-```json
-{
-  "patient_ids": ["patient-001", "patient-002", "patient-003"]
-}
-```
-
-Response:
-```json
-{
-  "patient_ids": ["patient-001", "patient-002", "patient-003"],
-  "comparison_summary": "Triage analysis of 3 patients...",
-  "risk_ranking": [
-    {"patient_id": "patient-001", "rank": 1, "rationale": "Highest acuity..."}
-  ],
-  "common_risk_factors": ["Age > 65", "Polypharmacy"],
-  "unique_concerns": {"patient-001": ["Recent cardiac event"]},
-  "triage_recommendation": "Prioritize patient-001 for intensive discharge planning",
-  "ai_powered": true
-}
-```
-
-#### AI Discharge Plan
-```http
-POST /api/v1/patients/{patient_id}/ai-discharge-plan
-```
-
-Response:
-```json
-{
-  "patient_id": "22",
-  "discharge_plan": "## Personalized Discharge Plan\n\n### Medications\n...",
-  "ai_powered": true,
-  "model_used": "gpt-4o"
-}
-```
-
-### Core Endpoints 📊
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/health` | Health check |
-| `GET` | `/api/v1/patients` | List all patients with risk scores |
-| `GET` | `/api/v1/patients/{id}` | Get patient details |
-| `GET` | `/api/v1/patients/{id}/risk-assessment` | Rule-based risk assessment |
-| `POST` | `/api/v1/patients/{id}/discharge-plan` | Generate rule-based discharge plan |
-| `GET` | `/api/v1/statistics` | Population statistics |
-| `GET` | `/api/v1/patients/{id}/summary?role=` | Role-based AI patient summary (doctor/ed_doctor/patient/caregiver/family/care_manager) |
-| `POST` | `/api/v1/ai/nl-to-sql` | Natural language to SQL query translation |
-| `GET` | `/api/v1/analytics/sql-stats` | FHIR SQL Builder analytics stats |
-| `GET` | `/api/v1/analytics/readmission-sql` | SQL-based readmission analytics |
-| `GET` | `/api/v1/analytics/sql-builder-info` | FHIR SQL Builder feature info |
-
-### Interactive API Documentation
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
 
 ---
 
-## 🚀 Installation
+### Backend Issues
 
-### Prerequisites
+#### "error parsing value for field CORS_ORIGINS"
+
+`CORS_ORIGINS` must be JSON array. In `docker-compose.yml`:
+```yaml
+- CORS_ORIGINS=["http://localhost:3000","http://localhost:3001"]  # Correct
+- CORS_ORIGINS=http://localhost:3000  # Wrong - causes pydantic error
+```
+
+#### Backend Can't Connect to IRIS
+
+```bash
+docker-compose ps         # Check all containers running
+docker-compose logs iris  # Check IRIS startup
+docker-compose logs backend --tail=30
+```
+
+Backend uses internal Docker hostname `iris` (not `localhost`):
+```yaml
+FHIR_BASE_URL=http://iris:52773/fhir/r4  # Correct for container-to-container
+```
+
+---
+
+### AI Agent Issues
+
+#### AI Features Not Working
+
+**Check AI status**:
+```bash
+curl http://localhost:8000/api/v1/ai/status
+```
+
+**Common causes**:
+- `OPENAI_API_KEY` not set → create `.env` file in project root
+- `AI_MODEL=gpt-4` (base) → change to `gpt-4o` or `gpt-4-turbo` (JSON mode required)
+- `AI_ENABLED=false` → set to `true` in `docker-compose.yml`
+
+**Check logs**:
+```bash
+docker-compose logs backend --tail=50
+```
+
+---
+
+### Sample Data Loading Issues
+
+#### "Expecting value: line 1 column 1 (char 0)"
+
+IRIS returns HTTP 201 with **empty body** on successful resource creation. Update to latest `data/load_sample_data.py` which extracts resource ID from `Location` header.
+
+#### Patients Created But No Conditions/Encounters
+
+Resource creation failed. Verify FHIR endpoint accepts writes:
+```bash
+curl -s -o /dev/null -w "%{http_code}" -u SuperUser:SYS \
+  -X POST http://localhost:52773/fhir/r4/Patient \
+  -H "Content-Type: application/fhir+json" \
+  -d '{"resourceType":"Patient","name":[{"family":"Test"}]}'
+# Expected: 201
+```
+
+---
+
+## 📚 Appendix
+
+### Manual FHIR Server Setup (Advanced)
+
+**Note**: The automated scripts handle this. Use manual setup only for customization/debugging.
 
 - **Docker** (v20.10+) with at least **6 GB RAM** allocated to Docker
 - **Docker Compose** (v2.0+)
@@ -527,11 +628,11 @@ AI_ENABLED=true
 Alternatively, export the key in the shell before `docker-compose up`:
 
 ```bash
-# Linux / macOS
+# Linux / macOS / WSL
 export OPENAI_API_KEY=sk-your-key-here
 
-# Windows PowerShell
-$env:OPENAI_API_KEY = "sk-your-key-here"
+# Windows CMD
+set OPENAI_API_KEY=sk-your-key-here
 ```
 
 #### 3. Start All Services
@@ -579,26 +680,37 @@ docker inspect --format='{{.State.Health.Status}}' smart-discharge-iris
 
 > **This step is mandatory on first run and after `docker-compose down` (data reset).** The FHIR endpoint is not pre-configured in the image — it must be installed into IRIS using ObjectScript.
 
+**Open interactive IRIS terminal:**
 ```bash
-# Linux / macOS / WSL
-docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
-docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
+docker exec -it smart-discharge-iris iris session IRIS
 ```
 
-```powershell
-# Windows PowerShell
-docker cp config\iris\install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
-docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
+**Paste all commands below inside IRIS terminal:**
+```objectscript
+set $NAMESPACE = "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+set $NAMESPACE = "HSLIB"
+do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
+set $NAMESPACE = "FHIRSERVER"
+do ##class(HS.FHIRServer.Installer).InstallNamespace()
+do ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", "hl7.fhir.r4.core@4.0.1")
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint("/fhir/r4")
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+write "FHIR installed at /fhir/r4",!
+halt
 ```
+
+**Wait 3-8 minutes** for package download and class compilation.
 
 **Expected output** (success indicators):
 ```
-HSCUSTOM already registered   ← or "ConfigItem save sc=1" on first run
-Saving hl7.fhir.r3.core@3.0.2 ← package data loading (may take 2-5 minutes)
-Saving hl7.fhir.r5.core@5.0.0
-...
-/fhir/r4 already installed     ← or "InstallInstance sc=1" on first run
-Done - EndpointExists:1        ← endpoint installed successfully
+Saving hl7.fhir.r4.core@4.0.1 ← package data loading (takes 2-5 minutes)
+INFO: New strategy created...
+FHIR installed at /fhir/r4    ← installation successful
 ```
 
 **Step 3d — Configure CSP gateway routing and authentication**
@@ -622,15 +734,165 @@ curl http://localhost:52773/fhir/r4/metadata
 # Should return a large JSON CapabilityStatement (resourceType: "CapabilityStatement")
 ```
 
-#### 4. Load Sample Data
+---
+
+### Detailed FHIR Server Setup (Alternative Manual Configuration)
+
+The following is the detailed manual setup procedure that was adapted for this application. This approach creates a FHIR server from scratch using IRIS terminal commands. This is useful if you need to customize the FHIR server configuration or troubleshoot installation issues.
+
+> **Note**: The interactive installation method (Step 5 above) uses this approach. Use this section to understand what each command does or to customize the configuration.
+
+#### Step 1: Start an IRIS Terminal Session
 
 ```bash
-pip install requests
-python3 data/load_sample_data.py
+docker exec -it smart-discharge-iris iris session IRIS
+```
+
+#### Step 2: Unexpire User Passwords
+
+By default, Community editions of IRIS Health have the password `SYS` for every account, but these passwords have expired. This step prevents authentication issues.
+
+> **Warning**: This is only suitable for development environments. Production environments should use robust authentication.
+
+```objectscript
+set $NAMESPACE = "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+```
+
+#### Step 3: Create a New Namespace for Your FHIR Server
+
+```objectscript
+set $NAMESPACE = "HSLIB"
+do:'##class(%SYS.Namespace).Exists("fhirdemo") ##class(HS.Util.Installer.Foundation).Install("fhirdemo")
+set $NAMESPACE = "fhirdemo"
+```
+
+> **Note**: For this application, we use the namespace `HSSYS` (configured in IRIS container). The namespace `fhirdemo` is shown here as an example if you need to create a custom namespace.
+
+#### Step 4: Install the FHIR Server
+
+Configure and install the FHIR R4 server endpoint:
+
+```objectscript
+// Make the path prefix for the FHIR server
+set fhirServerPath = "/fhir/r4"
+
+// Create Strategy 
+set strategyClass = "HS.FHIRServer.Storage.Json.InteractionsStrategy"
+
+// Create metadata info for FHIR version r4
+set metadataPackage = "hl7.fhir.r4.core@4.0.1"
+
+// You can allow metadata packages for multiple FHIR versions with the following: 
+// set metadataPackage = $LISTBUILD("hl7.fhir.r4.core@4.0.1","hl7.fhir.us.core@3.1.0")
+
+// Ensure namespace is FHIR enabled
+do ##class(HS.FHIRServer.Installer).InstallNamespace()
+do ##class(HS.FHIRServer.Installer).InstallInstance(fhirServerPath, strategyClass, metadataPackage)
+```
+
+> **Note**: This application uses `/fhir/r4` as the FHIR server path (not `/demo/fhir` as shown in some InterSystems examples).
+
+#### Step 5: Configure Search Result Limits
+
+Set limits on search results to avoid transferring huge amounts of data:
+
+```objectscript
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint(fhirServerPath)
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+```
+
+#### Step 6: Load FHIR Resources to the FHIR Server
+
+Load FHIR resource files from a directory into the FHIR server:
+
+```objectscript
+// Location of our FHIR data
+set fhirdata = "/usr/irissys/output/fhir"
+
+// Load FHIR resource files
+do ##class(HS.FHIRServer.Tools.DataLoader).SubmitResourceFiles(fhirdata, "FHIRServer", fhirServerPath, 1, "^fhirlogs")
+```
+
+**Arguments explanation:**
+1. **Location of the FHIR data** — Directory path containing FHIR JSON files
+2. **Type of service** — `FHIRServer` or `HTTP`
+3. **FHIR server location path** — The endpoint path (e.g., `/demo/fhir`)
+4. **Display progress** — `1` (yes) or `0` (no)
+5. **Log process to a global** — `^fhirlogs` (optional)
+
+> **Note**: For this application, sample data is loaded via the Python script `data/load_sample_data.py` which uses HTTP POST requests to the FHIR endpoint.
+
+#### Step 7: Verify the Endpoint
+
+Check that the endpoint is running by visiting the metadata endpoint:
+
+```bash
+curl http://localhost:52773/demo/fhir/metadata
+```
+
+It should return a `CapabilityStatement` resource (XML or JSON depending on Accept header).
+
+#### Step 8: Query the FHIR Endpoint
+
+Now that data is loaded, you can query the endpoint with HTTP requests.
+
+**Example GET request:**
+
+```http
+GET http://localhost:52773/demo/fhir/Patient/1
+Authorization: Basic SuperUser SYS
+Accept: application/fhir+json
+```
+
+**Using curl:**
+
+```bash
+curl -u "SuperUser:SYS" \
+    -H "Accept: application/fhir+json" \
+    http://localhost:52773/fhir/r4/Patient \
+    -o response.json
+```
+
+**Using Python Requests library:**
+
+```python
+import requests
+from requests.auth import HTTPBasicAuth
+
+headers = {"Content-Type": "application/fhir+json"}
+uri = "http://localhost:52773/demo/fhir/Patient/1"
+
+username = "SuperUser"
+password = "SYS"
+res = requests.get(uri, headers=headers, auth=HTTPBasicAuth(username, password))
+print(res)
+print(res.json())
+```
+
+---
+
+#### 4. Load Sample Data
+
+Execute from within the backend container to access the Docker network:
+
+```bash
+# Copy script to backend container
+docker cp data/load_sample_data.py smart-discharge-backend:/app/
+
+# Install requests library
+docker exec smart-discharge-backend pip install requests
+
+# Execute with FHIR URL pointing to 'iris' container
+docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /app/load_sample_data.py
 ```
 
 This creates 8 synthetic patients categorised by risk level:
-- **3 HIGH risk** — elderly patients with multiple chronic comorbidities (heart failure, COPD, CKD)
+- **3 HIGH risk** — elderly patients with multiple chronic comorbidities (heart failure, COPD, CKD, diabetes) and critical allergies (Penicillin, NSAIDs)
 - **3 MODERATE risk** — patients with 2 chronic conditions and recent encounters
 - **2 LOW risk** — younger patients with a single condition
 
@@ -707,6 +969,34 @@ environment:
 |----------|----------|---------|-------------|
 | `FHIR_BASE_URL` | Yes | `http://iris:52773/fhir/r4` | Internal FHIR endpoint (container-to-container) |
 | `IRIS_USERNAME` | Yes | `SuperUser` | IRIS user for authenticated FHIR writes |
+| `IRIS_PASSWORD` | Yes | `SYS` | IRIS password |
+| `CORS_ORIGINS` | Yes | `["http://localhost:3000","http://localhost:3001"]` | Allowed CORS origins (JSON array) |
+| `OPENAI_API_KEY` | No | _(empty)_ | OpenAI key. Without it, system runs in rule-based fallback mode |
+| `AI_MODEL` | No | `gpt-4o` | LLM model. Use `gpt-4o` or `gpt-4-turbo` |
+| `AI_TEMPERATURE` | No | `0.3` | Sampling temperature |
+| `AI_MAX_TOKENS` | No | `2000` | Maximum tokens in AI response |
+| `AI_ENABLED` | No | `true` | Master toggle for AI |
+| `HIGH_RISK_THRESHOLD` | No | `0.7` | Risk score above which is high risk |
+| `MODERATE_RISK_THRESHOLD` | No | `0.4` | Risk score above which is moderate risk |
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE)
+
+---
+
+## 🙏 Acknowledgments
+
+- **InterSystems** - IRIS for Health Community Edition
+- **OpenAI** - GPT-4o clinical reasoning engine
+- **HL7 FHIR** - Healthcare interoperability standard
+- **Contest Organizers** - InterSystems Programming Contest: AI Agents for FHIR 2026
+
+---
+
+**Built with ❤️ for healthcare innovation** | Carlos Eduardo Dias Duarte | [kcedd34@gmail.com](mailto:kcedd34@gmail.com)
 | `IRIS_PASSWORD` | Yes | `SYS` | IRIS user password |
 | `CORS_ORIGINS` | Yes | `["http://localhost:3000","http://localhost:3001"]` | Allowed CORS origins (JSON array) |
 | `OPENAI_API_KEY` | No | _(empty)_ | OpenAI key. Without it, system runs in rule-based fallback mode. Set via `.env` file (recommended) |
@@ -1039,8 +1329,13 @@ curl http://localhost:52773/fhir/r4/metadata
 If the FHIR R4 endpoint was never installed (e.g. first run or after `docker-compose down`), install it:
 
 ```bash
-docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
-docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
+# Open interactive IRIS terminal
+docker exec -it smart-discharge-iris iris session IRIS
+
+# Paste the installation commands from Step 5 (Installation section)
+# Wait 3-8 minutes for completion, then configure CSP Gateway
+docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
+docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
 Wait 3–8 minutes for class compilation to complete, then run the post-install setup:
@@ -1064,16 +1359,14 @@ Fix: uninstall and reinstall the FHIR endpoint. Run this in an IRIS session:
 set sc = ##class(HS.FHIRServer.Installer).UninstallInstance("/fhir/r4")
 write "Uninstall sc=",sc,!
 
-// Step 2: Re-run the install script (handles ConfigItem registration + namespace setup)
-// Exit this session and run from shell:
-// docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
-// docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
+// Step 2: Re-run the installation commands from Step 5
+// Exit and reopen interactive terminal, then paste all commands
 ```
 
-Or simply re-run the install script (it will create a new schema version):
+Or use the interactive installation method from Step 5:
 ```bash
-docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
-docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U HSSYS < /tmp/install_fhir.txt'
+docker exec -it smart-discharge-iris iris session IRIS
+# Paste all installation commands from Step 5
 ```
 
 #### IRIS container exits or runs out of memory
@@ -1188,10 +1481,16 @@ CORS errors on the frontend are almost always caused by a backend 500 error — 
 
 **Sample data fails to load:**
 ```bash
-# Ensure IRIS has fully started (wait 60 seconds)
+# Ensure IRIS has fully started (wait 60 seconds after docker-compose up)
 sleep 60
-python3 data/load_sample_data.py
+
+# Copy script to backend container and execute
+docker cp data/load_sample_data.py smart-discharge-backend:/app/
+docker exec smart-discharge-backend pip install requests
+docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /app/load_sample_data.py
 ```
+
+**Note**: The script uses `FHIR_BASE_URL` environment variable. When running from the host (outside Docker network), use `http://localhost:52773/fhir/r4`. When running inside containers, use `http://iris:52773/fhir/r4`.
 
 ---
 

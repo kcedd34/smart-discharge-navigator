@@ -1,5 +1,0 @@
-zn "HSLIB"
-set ^testwrite = "HSLIB writable"
-write "Write test OK",!
-kill ^testwrite
-halt

@@ -1,4 +1,0 @@
-set sc = ##class(HS.FHIRMeta.Load.NpmLoader).importPackages($LISTBUILD("/usr/irissys/dev/fhir/fhir-metadata/packages/hl7.fhir.r4.core"))
-write sc, !
-do $system.Status.DisplayError(sc)
-halt

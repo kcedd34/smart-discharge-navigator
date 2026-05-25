@@ -1,8 +1,0 @@
-write "=== HS.FHIRServer.ServiceAdmin class methods ===",!
-set rs = ##class(%Dictionary.MethodDefinition).%OpenId("HS.FHIRServer.ServiceAdmin||%OpenId")
-write rs,!
-do ##class(%Dictionary.MethodDefinition).%GetAll("HS.FHIRServer.ServiceAdmin", .methods)
-write "methods=",methods,!
-set sc = $System.OBJ.GetParams("HS.FHIRServer.ServiceAdmin", .params)
-write "sc=",sc,!
-halt

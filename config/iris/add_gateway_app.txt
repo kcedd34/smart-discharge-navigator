@@ -1,7 +1,0 @@
-write "=== Add FHIR to Gateway via IRIS ===",!
-set sc = ##class(Security.Applications).Get("/fhir/r4",.props)
-write "Enabled: ",props("Enabled"),!
-write "Namespace: ",props("NameSpace"),!
-set sc2 = ##class(%CSP.Gateway).AddGatewayApplication("/fhir/r4")
-write "AddGateway sc=",sc2,!
-halt

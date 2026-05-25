@@ -1,2 +1,0 @@
-write ##class(HS.FHIRMeta.Load.NpmLoader).IsPackageLoaded("hl7.fhir.r4.core@4.0.1")
-halt

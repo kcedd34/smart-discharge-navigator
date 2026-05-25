@@ -1,6 +1,0 @@
-write "=== FHIR Endpoint Config ===",!
-set ep = ##class(HS.FHIRServer.ServiceAdmin).GetServiceConfigByURL("/fhir/r4")
-write "ep=",ep,!
-write "=== List ServiceAdmin Methods ===",!
-do ##class(%SYSTEM.OBJ).ShowClassDoc("HS.FHIRServer.ServiceAdmin")
-halt

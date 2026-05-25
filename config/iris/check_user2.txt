@@ -1,7 +1,0 @@
-write "=== Security Methods ===",!
-set sc = ##class(Security.Users).Exists("SuperUser", .userObj, .enabled)
-write "Exists sc=",sc," enabled=",enabled,!
-write "=== Change password direct ===",!
-set sc = ##class(Security.Users).AddEditUser("SuperUser",0,.props)
-write "AddEdit sc=",sc,!
-halt

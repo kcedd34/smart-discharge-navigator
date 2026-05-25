@@ -1,7 +1,0 @@
-write "=== Restart Web Server ===",!
-do $system.WebGateway.StopWebServer()
-write "Stopped. Waiting...",!
-hang 3
-do $system.WebGateway.StartWebServer()
-write "Started.",!
-halt

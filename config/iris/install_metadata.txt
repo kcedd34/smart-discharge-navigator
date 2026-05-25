@@ -1,5 +1,0 @@
-write "=== InstallMetadataSet ===",!
-set sc = ##class(HS.FHIRServer.Installer).InstallMetadataSet("/fhir/r4", "hl7.fhir.r4.core@4.0.1")
-write "SC=",sc,!
-do $system.Status.DisplayError(sc)
-halt

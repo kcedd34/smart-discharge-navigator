@@ -1,7 +1,0 @@
-zn "HSLIB"
-write "=== HSLIB Class check ===",!
-write "HS.FHIRMeta.Storage.ObjDef: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.ObjDef"),!
-write "HS.FHIRMeta.Storage.Package: ",##class(%Dictionary.ClassDefinition).%ExistsId("HS.FHIRMeta.Storage.Package"),!
-write "^HS.FHIRMeta.Storage.PackageD: ",$data(^HS.FHIRMeta.Storage.PackageD),!
-write "^HS.FHIRMeta.Storage.ObjDefD: ",$data(^HS.FHIRMeta.Storage.ObjDefD),!
-halt

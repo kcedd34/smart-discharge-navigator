@@ -1,8 +1,0 @@
-write "=== InstallInstance signature ===",!
-set stmt = ##class(%SQL.Statement).%New()
-do stmt.%Prepare("SELECT FormalSpec,Description FROM %Dictionary.MethodDefinition WHERE parent='HS.FHIRServer.Installer' AND Name='InstallInstance'")
-set rs = stmt.%Execute()
-do rs.%Next()
-write "FormalSpec: ",rs.FormalSpec,!
-write "Description: ",rs.Description,!
-halt

@@ -1,10 +1,57 @@
-write "Step 1: Register HSCUSTOM as HealthShare ConfigItem...",!
-if '##class(HS.Util.Installer.ConfigItem).%ExistsId("HSCUSTOM") { set obj = ##class(HS.Util.Installer.ConfigItem).%New() set obj.Name = "HSCUSTOM" set obj.Type = "Foundation" set sc1 = obj.%Save() write "ConfigItem save sc=",sc1,! } else { write "HSCUSTOM already registered",! }
-write "Step 2: InstallNamespace in HSCUSTOM...",!
-set sc2 = ##class(HS.FHIRServer.Installer).InstallNamespace("HSCUSTOM")
-write "InstallNamespace sc=",sc2,!
-write "Step 3: Switch to HSCUSTOM and install endpoint...",!
-zn "HSCUSTOM"
-if '##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4") { set pkgList = $listbuild("hl7.fhir.r4.core@4.0.1","hl7.fhir.us.core@3.1.0") set sc3 = ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4","HS.FHIRServer.Storage.Json.InteractionsStrategy",pkgList) write "InstallInstance sc=",sc3,! } else { write "/fhir/r4 already installed",! }
-write "Step 4: Done - EndpointExists:",##class(HS.FHIRServer.ServiceAdmin).EndpointExists("/fhir/r4"),!
+// FHIR Server Installation Script for InterSystems IRIS
+// Based on InterSystems FHIR R4 documentation
+
+// 1. Unexpire passwords (development only)
+set $NAMESPACE = "%SYS"
+write "Unexpiring user passwords...",!
+do ##class(Security.Users).UnExpireUserPasswords("*")
+write "Passwords unexpired",!,!
+
+// 2. Create namespace for FHIR server
+set $NAMESPACE = "HSLIB"
+write "Creating namespace 'FHIRSERVER'...",!
+if '##class(%SYS.Namespace).Exists("FHIRSERVER") {
+    do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
+    write "Namespace FHIRSERVER created",!
+} else {
+    write "Namespace FHIRSERVER already exists",!
+}
+
+set $NAMESPACE = "FHIRSERVER"
+
+// 3. Install FHIR R4 server
+write !,"Installing FHIR R4 server...",!
+set fhirServerPath = "/fhir/r4"
+set strategyClass = "HS.FHIRServer.Storage.Json.InteractionsStrategy"
+set metadataPackage = "hl7.fhir.r4.core@4.0.1"
+
+write "Namespace: ",fhirServerPath,!
+write "Strategy: ",strategyClass,!
+write "Metadata: ",metadataPackage,!,!
+
+do ##class(HS.FHIRServer.Installer).InstallNamespace()
+do ##class(HS.FHIRServer.Installer).InstallInstance(fhirServerPath, strategyClass, metadataPackage)
+write "FHIR server installed at: ",fhirServerPath,!,!
+
+// 4. Configure search limits
+write "Configuring search limits...",!
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint(fhirServerPath)
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+write "Search limits configured:",!
+write "  - DefaultSearchPageSize: 1000",!
+write "  - MaxSearchPageSize: 10000",!
+write "  - MaxSearchResults: 10000",!,!
+
+write "========================================",!
+write "FHIR Server Installation Complete!",!
+write "========================================",!
+write "Endpoint: http://localhost:52773/fhir/r4/metadata",!
+write "Username: SuperUser",!
+write "Password: SYS",!
+write !
+
 halt

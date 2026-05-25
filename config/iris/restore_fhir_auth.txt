@@ -1,8 +1,0 @@
-set app = ##class(Security.Applications).%OpenId("/fhir/r4")
-write "Current AutheEnabled: ",app.AutheEnabled,!
-set app.AutheEnabled = 8288
-set sc = app.%Save()
-write "Save sc=",sc,!
-set app2 = ##class(Security.Applications).%OpenId("/fhir/r4")
-write "New AutheEnabled: ",app2.AutheEnabled,!
-halt

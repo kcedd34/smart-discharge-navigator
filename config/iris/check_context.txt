@@ -1,2 +1,0 @@
-do $system.OBJ.LoadDir("/usr/irissys/dev/fhir/fhir-metadata","ck",,1)
-halt

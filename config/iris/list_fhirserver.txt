@@ -1,9 +1,0 @@
-write "=== FHIRServer classes in HSSYS ===",!
-set stmt = ##class(%SQL.Statement).%New()
-do stmt.%Prepare("SELECT Name FROM %Dictionary.ClassDefinition WHERE Name LIKE 'HS.FHIRServer%' ORDER BY Name")
-set rs = stmt.%Execute()
-for {
-    quit:'rs.%Next()
-    write rs.Name,!
-}
-halt

@@ -1,2 +1,0 @@
-&sql(SELECT Name FROM %Dictionary.ClassDefinition WHERE Name %STARTSWITH 'HS.FHIRServer.Installer' ORDER BY Name)
-halt
