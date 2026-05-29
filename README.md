@@ -553,6 +553,8 @@ npm start
 - Highlight the **"Risks Missed by Rules"** section
 - Demonstrate **graceful fallback** by toggling `AI_ENABLED=false`
 
+Youtube URL: https://youtu.be/MANijj_yASs
+
 ---
 
 ## ⚙️ Environment Variables
