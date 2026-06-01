@@ -58,6 +58,15 @@ The `RestartHTTPd()` call referenced `%SYS.HSDFHIR.Utils`, a class absent in IRI
 
 ---
 
+#### 5. Clarified That `docker-compose up -d` Alone Is Insufficient
+
+**Problem**: Reviewers and users running `docker-compose up -d` directly (instead of `./start.sh`) would get containers running but no FHIR endpoint and no sample data, resulting in a broken application with no patients shown.
+
+**Fix**:
+- `README.md`: Added prominent `⚠️` warning blocks at the top of both the **Method 1** and **Method 2** installation sections, making clear that `docker-compose up -d` only starts the containers and that Steps 5–7 (or `./start.sh`) are required for a fully functional setup.
+
+---
+
 ### Documentation Updates (`README.md`)
 
 - **Step 4**: Replaced broken `docker inspect --format='{{.State.Health.Status}}'` with `curl -s -o /dev/null -w "%{http_code}" http://localhost:52773/csp/sys/UtilHome.csp`.
@@ -78,7 +87,7 @@ The `RestartHTTPd()` call referenced `%SYS.HSDFHIR.Utils`, a class absent in IRI
 | `start.sh` | Fixed wait loop, FHIR install namespace, success detection, automatic data loading; removed ~80 lines of orphaned code |
 | `config/iris/install_fhir.txt` | Single-line ObjectScript for piped-mode compatibility |
 | `config/iris/setup_fhir_post_install.sh` | Correct `%OpenId()`, single-line syntax, removed unavailable class call |
-| `README.md` | All commands corrected to match fixed code; troubleshooting updated |
+| `README.md` | All commands corrected to match fixed code; troubleshooting updated; warning notes added for `docker-compose up -d` |
 
 ---
 
