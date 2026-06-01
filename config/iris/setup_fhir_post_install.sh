@@ -29,17 +29,11 @@ write "CSP application /fhir configured",!
 
 write "2. Configuring SuperUser for HTTP auth...",!
 // Ensure SuperUser has HTTP login enabled
-set user = ##class(Security.Users).Open("SuperUser")
-if $IsObject(user) {
-    set user.AutheMethods = $ZBOOLEAN(user.AutheMethods, 64, 1)  // Enable Password
-    do user.%Save()
-    write "SuperUser HTTP authentication enabled",!
-}
+set user = ##class(Security.Users).%OpenId("SuperUser")
+if $IsObject(user) set user.AutheMethods = $ZBOOLEAN(user.AutheMethods, 64, 1) do user.%Save() write "SuperUser HTTP authentication enabled",!
+if '$IsObject(user) write "SuperUser auth config skipped (user not found)",!
 
-write "3. Restarting embedded HTTP server...",!
-// Restart httpd to apply changes
-do ##class(%SYS.HSDFHIR.Utils).RestartHTTPd()
-write "HTTP server restarted",!
+write "3. HTTP server restart — not required, FHIR endpoint is accessible after routing config.",!
 
 write !,"========================================",!
 write "CSP Gateway Configuration Complete!",!

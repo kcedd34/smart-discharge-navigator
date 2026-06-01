@@ -133,7 +133,7 @@ chmod +x start.sh
 ./start.sh
 ```
 
-The script automatically: starts Docker containers, waits for IRIS health check, installs the FHIR R4 endpoint, configures CSP gateway routing, sets up authentication, and loads 8 sample patients.
+The script automatically: starts Docker containers, waits for IRIS readiness (healthcheck + HTTP probe), installs the FHIR R4 endpoint, configures CSP gateway routing, sets up authentication, and loads 8 sample patients.
 
 **Access Points**:
 
@@ -175,18 +175,18 @@ Starts 3 services: **IRIS for Health** (port 52773), **Backend API** (port 8000)
 
 #### Step 4: Wait for IRIS Initialization
 ```bash
-# Wait until healthy (2–5 minutes)
-docker inspect --format='{{.State.Health.Status}}' smart-discharge-iris
-# Expected output: healthy
+# Wait until the web server responds (2–5 minutes)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:52773/csp/sys/UtilHome.csp
+# Expected output: 200, 302, or 401
 ```
 
 #### Step 5: Install FHIR R4 Endpoint
 
 > **Mandatory on first run and after `docker-compose down`.** The FHIR endpoint is not pre-configured in the image.
 
-Open an interactive IRIS terminal:
+Open an interactive IRIS terminal (the `-U %SYS` flag is required — FHIR installation classes live in the `%SYS` namespace):
 ```bash
-docker exec -it smart-discharge-iris iris session IRIS
+docker exec -it smart-discharge-iris iris session IRIS -U %SYS
 ```
 
 Paste all commands inside the IRIS terminal:
@@ -210,21 +210,24 @@ halt
 
 **Wait 3–8 minutes** for package download and class compilation. Success indicator: `FHIR installed at /fhir/r4`.
 
-#### Step 6: Configure CSP Gateway & Authentication
+#### Step 6: Configure CSP Gateway
 
-Required to enable HTTP routing to `/fhir/r4/*` endpoints.
+Adds `/fhir` to the CSP gateway routing table so requests to `/fhir/r4/*` are routed correctly.
 
 ```bash
 docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
 docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
-This script adds `/fhir` to the CSP gateway routing table (`CSP.ini`), configures HTTP Basic auth, and restarts the embedded httpd.
+> **Note**: The FHIR `metadata` endpoint (HTTP GET) is typically accessible immediately after Step 5 without this step. Step 6 registers a `/fhir` CSP application entry and enables Password auth for the path — required for some IRIS editions or configurations.
 
 Verify:
 ```bash
 curl http://localhost:52773/fhir/r4/metadata
 # Expected: 200 with CapabilityStatement JSON
+
+# Direct FHIR resource access requires Basic Auth (handled automatically by the backend):
+curl -u SuperUser:SYS http://localhost:52773/fhir/r4/Patient?_count=5
 ```
 
 #### Step 7: Load Sample Data
@@ -232,9 +235,8 @@ curl http://localhost:52773/fhir/r4/metadata
 Must run from inside the backend container to access the Docker network:
 
 ```bash
-docker cp data/load_sample_data.py smart-discharge-backend:/app/
-docker exec smart-discharge-backend pip install requests
-docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /app/load_sample_data.py
+docker cp data/load_sample_data.py smart-discharge-backend:/tmp/load_sample_data.py
+docker exec -e FHIR_BASE_URL=http://iris:52773/fhir/r4 smart-discharge-backend python /tmp/load_sample_data.py
 ```
 
 Creates 8 synthetic patients:
@@ -538,7 +540,9 @@ npm start
 
 ## 🎥 Demo Video
 
-**Suggested script** (5–7 minutes):
+▶️ **[Smart Discharge Navigator Demo](https://www.youtube.com/watch?v=MANijj_yASs)** (YouTube)
+
+**Coverage** (5–7 minutes):
 
 1. **Introduction** (30s) — Problem: hospital readmissions. Solution: AI Agent for FHIR
 2. **AI Agent Demo** (2 min) — AI Chat, patient context switching, clinical questions
@@ -552,8 +556,6 @@ npm start
 - Show the **AI Status badge** (Active vs Fallback)
 - Highlight the **"Risks Missed by Rules"** section
 - Demonstrate **graceful fallback** by toggling `AI_ENABLED=false`
-
-Youtube URL: https://youtu.be/MANijj_yASs
 
 ---
 
@@ -608,7 +610,7 @@ Verify: `curl http://localhost:52773/fhir/r4/metadata` — expected 200 with Cap
 #### FHIR endpoint returns 404 — endpoint not installed
 
 ```bash
-docker exec -it smart-discharge-iris iris session IRIS
+docker exec -it smart-discharge-iris iris session IRIS -U %SYS
 # Paste all installation commands from Step 5 above
 # Wait 3–8 minutes, then configure CSP gateway:
 docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
@@ -632,7 +634,13 @@ Then re-run Steps 5–6 from the Installation section.
 
 IRIS needs at least 4 GB RAM. Confirm `config/iris/merge.cpf` contains `globals=256,0,0,0,0,0`. Check status:
 ```bash
-docker inspect --format='{{.State.Health.Status}}' smart-discharge-iris
+# Check healthcheck status (use conditional template — plain .State.Health.Status fails if healthcheck not yet initialized)
+docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' smart-discharge-iris
+
+# Or probe HTTP directly (more reliable):
+curl -s -o /dev/null -w "%{http_code}" http://localhost:52773/csp/sys/UtilHome.csp
+# Expected: 200, 302, or 401
+
 docker logs smart-discharge-iris --tail=50
 ```
 

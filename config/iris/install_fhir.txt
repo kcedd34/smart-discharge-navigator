@@ -10,12 +10,8 @@ write "Passwords unexpired",!,!
 // 2. Create namespace for FHIR server
 set $NAMESPACE = "HSLIB"
 write "Creating namespace 'FHIRSERVER'...",!
-if '##class(%SYS.Namespace).Exists("FHIRSERVER") {
-    do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
-    write "Namespace FHIRSERVER created",!
-} else {
-    write "Namespace FHIRSERVER already exists",!
-}
+if '##class(%SYS.Namespace).Exists("FHIRSERVER") do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
+write "Namespace FHIRSERVER ready",!
 
 set $NAMESPACE = "FHIRSERVER"
 

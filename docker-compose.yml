@@ -12,7 +12,11 @@ services:
       - ./config/iris/merge.cpf:/tmp/merge.cpf:ro
       - iris-data:/usr/irissys/mgr  # ✅ PERSISTIR DADOS DO IRIS
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "iris status IRIS 2>&1 | grep -qi running"]
+      interval: 10s
+      timeout: 15s
+      retries: 30
+      start_period: 90s
     networks:
       - smart-discharge-network
 
