@@ -119,6 +119,8 @@ chmod +x start.sh
 
 ## 🚀 Installation
 
+> ⚠️ **`docker-compose up -d` alone is NOT sufficient.** It only starts the containers — the FHIR endpoint and sample data are **not** pre-installed in the image. Use `./start.sh` for a fully automatic setup (Linux/macOS), or follow Steps 5–7 manually (Windows users or if `start.sh` fails).
+
 ### Method 1: Automated Script (Recommended)
 
 ```bash
@@ -148,6 +150,8 @@ The script automatically: starts Docker containers, waits for IRIS readiness (he
 ---
 
 ### Method 2: Manual Installation
+
+> ⚠️ **`docker-compose up -d` (Step 3) only starts the containers.** You must also complete Steps 5, 6, and 7 to install the FHIR endpoint and load sample data — without them the application will show no patients.
 
 #### Step 1: Clone Repository
 ```bash
