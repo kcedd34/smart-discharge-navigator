@@ -100,8 +100,9 @@ METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 \
 if [ "$METADATA_CODE" = "200" ]; then
     echo "✅ FHIR R4 endpoint already installed — skipping installation."
 else
-    echo "📦 Installing FHIR R4 endpoint (this takes 3–8 minutes, please wait)..."
-    echo "   Installing hl7.fhir.r4.core@4.0.1 into InterSystems IRIS..."
+    echo "📦 Installing FHIR R4 endpoint (this takes 3–8 minutes on first run)..."
+    echo "   The installer waits for Foundation.Install background jobs to complete"
+    echo "   before calling InstallInstance — this avoids the namespace-not-ready race."
 
     SCRIPT_SRC="config/iris/install_fhir.txt"
     if [ ! -f "$SCRIPT_SRC" ]; then
@@ -114,11 +115,10 @@ else
     INSTALL_OUTPUT=$(docker exec -i smart-discharge-iris bash -c \
         'iris session IRIS -U %SYS < /tmp/install_fhir.txt 2>&1')
 
-    # Check for success using the actual output string from install_fhir.txt
     if echo "$INSTALL_OUTPUT" | grep -q "FHIR Server Installation Complete"; then
         echo "✅ FHIR R4 endpoint installed successfully!"
     else
-        # Secondary check via HTTP in case output differed
+        # Secondary check via HTTP
         sleep 5
         VERIFY_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 \
             http://localhost:52773/fhir/r4/metadata 2>/dev/null)
@@ -128,7 +128,7 @@ else
             echo "❌ FHIR endpoint installation may have failed. Last output:"
             echo "$INSTALL_OUTPUT" | tail -20
             echo ""
-            echo "   Try running manually:"
+            echo "   Run manually:"
             echo "   docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt"
             echo "   docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U %SYS < /tmp/install_fhir.txt'"
             exit 1

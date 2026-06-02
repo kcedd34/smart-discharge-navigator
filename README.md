@@ -28,6 +28,12 @@ chmod +x start.sh
 ./start.sh
 ```
 
+> **⚠️ First run installs FHIR (~3–8 min)**: `start.sh` automatically installs
+> the FHIR R4 endpoint into the running IRIS container on first run. The script
+> waits for the FHIRSERVER namespace to be fully ready before proceeding, which
+> eliminates the race condition from the original release. Subsequent runs skip
+> the installation entirely (takes seconds).
+
 **Windows Users** (or if `start.sh` fails): see [Manual Installation](#method-2-manual-installation) below.
 
 **Note**: Without `OPENAI_API_KEY`, the system runs in rule-based mode — fully functional, no AI features.
@@ -119,9 +125,12 @@ chmod +x start.sh
 
 ## 🚀 Installation
 
-> ⚠️ **`docker-compose up -d` alone is NOT sufficient.** It only starts the containers — the FHIR endpoint and sample data are **not** pre-installed in the image. Use `./start.sh` for a fully automatic setup (Linux/macOS), or follow Steps 5–7 manually (Windows users or if `start.sh` fails).
+> ⚠️ **`docker-compose up -d` alone is NOT sufficient.** It only starts the
+> containers — the FHIR endpoint and sample data are not pre-installed in the
+> image. Use `./start.sh` for a fully automatic setup, or follow Steps 5–7
+> manually (Windows users or if `start.sh` fails).
 
-### Method 1: Automated Script (Recommended)
+### Method 1: Automated Script (Recommended — Linux/macOS)
 
 ```bash
 git clone https://github.com/kcedd34/smart-discharge-navigator.git
@@ -135,7 +144,14 @@ chmod +x start.sh
 ./start.sh
 ```
 
-The script automatically: starts Docker containers, waits for IRIS readiness (healthcheck + HTTP probe), installs the FHIR R4 endpoint, configures CSP gateway routing, sets up authentication, and loads 8 sample patients.
+What the script does automatically:
+1. Checks Docker is running
+2. Starts all 3 containers (`docker-compose up -d`)
+3. Waits for IRIS to become healthy
+4. Installs FHIR R4 endpoint if not yet installed (3–8 min on first run, instant on subsequent runs)
+5. Configures CSP gateway routing
+6. Waits for the backend API
+7. Loads 8 sample patients
 
 **Access Points**:
 
@@ -149,9 +165,11 @@ The script automatically: starts Docker containers, waits for IRIS readiness (he
 
 ---
 
-### Method 2: Manual Installation
+### Method 2: Manual Installation (Windows / troubleshooting)
 
-> ⚠️ **`docker-compose up -d` (Step 3) only starts the containers.** You must also complete Steps 5, 6, and 7 to install the FHIR endpoint and load sample data — without them the application will show no patients.
+> ⚠️ **`docker-compose up -d` (Step 3) only starts the containers.** You must
+> also complete Steps 5, 6, and 7 to install the FHIR endpoint and load sample
+> data — without them the application will show no patients.
 
 #### Step 1: Clone Repository
 ```bash
@@ -162,7 +180,7 @@ cd smart-discharge-navigator
 #### Step 2: Configure AI (Optional)
 
 Create `.env` in the project root:
-```bash
+```
 OPENAI_API_KEY=sk-your-key-here
 AI_MODEL=gpt-4o
 AI_ENABLED=true
@@ -171,6 +189,7 @@ AI_ENABLED=true
 > **Important**: Use `gpt-4o` or `gpt-4-turbo`. Base `gpt-4` lacks JSON mode support and will fall back to rule-based mode.
 
 #### Step 3: Start Containers
+
 ```bash
 docker-compose up -d
 ```
@@ -178,65 +197,50 @@ docker-compose up -d
 Starts 3 services: **IRIS for Health** (port 52773), **Backend API** (port 8000), **Frontend** (port 3000).
 
 #### Step 4: Wait for IRIS Initialization
+
 ```bash
 # Wait until the web server responds (2–5 minutes)
 curl -s -o /dev/null -w "%{http_code}" http://localhost:52773/csp/sys/UtilHome.csp
-# Expected output: 200, 302, or 401
+# Expected: 200, 302, or 401
 ```
 
 #### Step 5: Install FHIR R4 Endpoint
 
-> **Mandatory on first run and after `docker-compose down`.** The FHIR endpoint is not pre-configured in the image.
+> **Mandatory on first run and after `docker-compose down`.** The FHIR endpoint
+> is not pre-configured in the community image.
+>
+> The script below includes a **poll loop** that waits for the FHIRSERVER
+> namespace background jobs to complete before calling `InstallInstance` — this
+> is the fix for the race condition from the original release.
 
-Open an interactive IRIS terminal (the `-U %SYS` flag is required — FHIR installation classes live in the `%SYS` namespace):
 ```bash
-docker exec -it smart-discharge-iris iris session IRIS -U %SYS
+docker cp config/iris/install_fhir.txt smart-discharge-iris:/tmp/install_fhir.txt
+docker exec -i smart-discharge-iris bash -c 'iris session IRIS -U %SYS < /tmp/install_fhir.txt'
 ```
 
-Paste all commands inside the IRIS terminal:
-```objectscript
-set $NAMESPACE = "%SYS"
-do ##class(Security.Users).UnExpireUserPasswords("*")
-set $NAMESPACE = "HSLIB"
-do ##class(HS.Util.Installer.Foundation).Install("FHIRSERVER")
-set $NAMESPACE = "FHIRSERVER"
-do ##class(HS.FHIRServer.Installer).InstallNamespace()
-do ##class(HS.FHIRServer.Installer).InstallInstance("/fhir/r4", "HS.FHIRServer.Storage.Json.InteractionsStrategy", "hl7.fhir.r4.core@4.0.1")
-set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint("/fhir/r4")
-set configData = strategy.GetServiceConfigData()
-set configData.DefaultSearchPageSize = 1000
-set configData.MaxSearchPageSize = 10000
-set configData.MaxSearchResults = 10000
-do strategy.SaveServiceConfigData(configData)
-write "FHIR installed at /fhir/r4",!
-halt
-```
+**Wait 3–8 minutes** for package download and class compilation. Success indicator: `FHIR Server Installation Complete!`
 
-**Wait 3–8 minutes** for package download and class compilation. Success indicator: `FHIR installed at /fhir/r4`.
+Verify:
+```bash
+curl http://localhost:52773/fhir/r4/metadata
+# Expected: 200 with CapabilityStatement JSON
+```
 
 #### Step 6: Configure CSP Gateway
-
-Adds `/fhir` to the CSP gateway routing table so requests to `/fhir/r4/*` are routed correctly.
 
 ```bash
 docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
 docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
-> **Note**: The FHIR `metadata` endpoint (HTTP GET) is typically accessible immediately after Step 5 without this step. Step 6 registers a `/fhir` CSP application entry and enables Password auth for the path — required for some IRIS editions or configurations.
+Idempotent — safe to run multiple times. Registers the `/fhir` CSP application entry and enables Password auth.
 
-Verify:
 ```bash
-curl http://localhost:52773/fhir/r4/metadata
-# Expected: 200 with CapabilityStatement JSON
-
-# Direct FHIR resource access requires Basic Auth (handled automatically by the backend):
+# Direct FHIR resource access (Basic Auth — handled automatically by the backend):
 curl -u SuperUser:SYS http://localhost:52773/fhir/r4/Patient?_count=5
 ```
 
 #### Step 7: Load Sample Data
-
-Must run from inside the backend container to access the Docker network:
 
 ```bash
 docker cp data/load_sample_data.py smart-discharge-backend:/tmp/load_sample_data.py
@@ -252,18 +256,18 @@ Creates 8 synthetic patients:
 
 ### Restarting After Stop
 
-**Containers stopped** (not destroyed):
+**Containers stopped** (not destroyed — FHIR data persists in volume):
 ```bash
 docker-compose start
-
-# Re-apply CSP gateway config (ephemeral — required after every restart)
-docker cp config/iris/setup_fhir_post_install.sh smart-discharge-iris:/tmp/setup_fhir_post_install.sh
-docker exec smart-discharge-iris bash /tmp/setup_fhir_post_install.sh
 ```
 
-**Containers destroyed** (`docker-compose down`): repeat Steps 3–7.
+**Containers destroyed** (`docker-compose down`): repeat Steps 3–7 (or use `./start.sh` — it handles Steps 5–7 automatically).
 
-> **Tip**: Use `start.sh` instead of `docker-compose start` — it handles the CSP re-configuration automatically.
+**Full reset** (remove volumes too):
+```bash
+docker-compose down -v
+./start.sh   # fresh volume + full reinstall
+```
 
 ---
 

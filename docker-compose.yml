@@ -1,5 +1,9 @@
 services:
-  # InterSystems IRIS for Health Community Edition
+  # InterSystems IRIS for Health Community Edition.
+  # FHIR R4 is installed at runtime by start.sh (first run only).
+  # The install_fhir.txt script includes a poll loop that waits for the
+  # FHIRSERVER namespace background jobs to complete before calling
+  # InstallInstance — this eliminates the race condition reported by the reviewer.
   iris:
     image: intersystemsdc/irishealth-community:latest
     container_name: smart-discharge-iris

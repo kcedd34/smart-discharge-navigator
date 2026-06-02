@@ -24,8 +24,13 @@ set props("ServeFiles") = 0
 set props("ServeFilesTimeout") = 0
 set props("UseSessionCookie") = 2
 set props("RecurseTimeout") = 60
-do ##class(Security.Applications).Create("/fhir", .props)
-write "CSP application /fhir configured",!
+// Guard: Create only if it does not already exist (idempotent — safe on repeated runs)
+// Single-line if syntax required — multi-line blocks cause <SYNTAX> in piped mode
+set fhirAppExists = ##class(Security.Applications).Exists("/fhir")
+if 'fhirAppExists do ##class(Security.Applications).Create("/fhir", .props)
+if 'fhirAppExists write "CSP application /fhir created",!
+if fhirAppExists do ##class(Security.Applications).Modify("/fhir", .props)
+if fhirAppExists write "CSP application /fhir already exists — updated.",!
 
 write "2. Configuring SuperUser for HTTP auth...",!
 // Ensure SuperUser has HTTP login enabled
