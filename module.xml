@@ -5,11 +5,10 @@
       <Name>smart-discharge-navigator</Name>
       <Version>1.2.3</Version>
       <Packaging>module</Packaging>
-      <Description>Smart Discharge Navigator — AI Agent for Hospital Readmission Risk built on IRIS for Health. Combines GPT-4o clinical reasoning with a rule-based fallback engine to score patient readmission risk and generate personalized discharge care plans via FHIR R4.</Description>
-      <Keywords>FHIR,AI,readmission,clinical,discharge,GPT-4,risk,hospital,HL7</Keywords>
+      <Description>AI Agent for Hospital Readmission Risk built on IRIS for Health.</Description>
+      <Keywords>FHIR,AI,readmission,clinical,discharge</Keywords>
       <Author>Carlos Eduardo Dias Duarte</Author>
       <License>MIT</License>
-      <Repository>https://github.com/kcedd34/smart-discharge-navigator</Repository>
     </Module>
   </Document>
 </Export>
