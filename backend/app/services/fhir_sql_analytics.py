@@ -247,11 +247,11 @@ class FHIRSQLAnalyticsService:
             SELECT 
                 p.Key as patient_id,
                 COUNT(e.Key) as encounter_count,
-                MIN(e.Period_start) as first_encounter,
-                MAX(e.Period_start) as last_encounter
+                MIN(e.dateStart) as first_encounter,
+                MAX(e.dateStart) as last_encounter
             FROM {schema}.Patient p
             LEFT JOIN {schema}.Encounter e 
-                ON e.Subject = CONCAT('Patient/', p.Key)
+                ON e.Subject = p.Key
             GROUP BY p.Key
             HAVING COUNT(e.Key) > 0
             ORDER BY encounter_count DESC
@@ -274,13 +274,11 @@ class FHIRSQLAnalyticsService:
         # ──────────────────────────────────────────────────────────────
         condition_prevalence_sql = f"""
             SELECT 
-                c.Code_coding_code as condition_code,
-                c.Code_coding_display as condition_name,
-                COUNT(*) as occurrence_count,
-                COUNT(DISTINCT c.Subject) as affected_patients
+                c.subject as patient_ref,
+                COUNT(*) as condition_count
             FROM {schema}.Condition c
-            GROUP BY c.Code_coding_code, c.Code_coding_display
-            ORDER BY occurrence_count DESC
+            GROUP BY c.subject
+            ORDER BY condition_count DESC
         """
 
         result = await self.execute_sql(condition_prevalence_sql)
@@ -311,9 +309,9 @@ class FHIRSQLAnalyticsService:
                 COUNT(DISTINCT c.Key) as active_conditions
             FROM {schema}.Patient p
             LEFT JOIN {schema}.Encounter e 
-                ON e.Subject = CONCAT('Patient/', p.Key)
+                ON e.Subject = p.Key
             LEFT JOIN {schema}.Condition c 
-                ON c.Subject = CONCAT('Patient/', p.Key)
+                ON c.Subject = p.Key
             GROUP BY p.Key, p.BirthDate, p.gender
             HAVING COUNT(DISTINCT e.Key) >= 2 
                 OR COUNT(DISTINCT c.Key) >= 2
@@ -335,13 +333,12 @@ class FHIRSQLAnalyticsService:
         # ──────────────────────────────────────────────────────────────
         medication_stats_sql = f"""
             SELECT 
-                m.MedicationCodeableConcept_coding_display as medication_name,
-                m.Status as rx_status,
-                COUNT(*) as prescription_count,
-                COUNT(DISTINCT m.Subject) as patient_count
+                m.subject as patient_ref,
+                m.status as rx_status,
+                COUNT(*) as medication_count
             FROM {schema}.MedicationRequest m
-            GROUP BY m.MedicationCodeableConcept_coding_display, m.Status
-            ORDER BY prescription_count DESC
+            GROUP BY m.subject, m.status
+            ORDER BY medication_count DESC
         """
 
         result = await self.execute_sql(medication_stats_sql)
@@ -405,7 +402,7 @@ class FHIRSQLAnalyticsService:
                 END as frequency_risk_level
             FROM {schema}.Patient p
             LEFT JOIN {schema}.Encounter e 
-                ON e.Subject = CONCAT('Patient/', p.Key)
+                ON e.Subject = p.Key
             GROUP BY p.Key, p.BirthDate
             ORDER BY encounter_count DESC
         """
