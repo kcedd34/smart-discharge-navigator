@@ -98,12 +98,13 @@ class FHIRSQLAnalyticsService:
         """
         Execute a SQL query against InterSystems IRIS FHIR SQL Builder.
 
-        Uses the IRIS REST SQL execution endpoint to run queries against
-        FHIR resource projections.
+        Uses the IRIS Atelier REST API action/query endpoint to run queries
+        against FHIR resource projections.
 
         IRIS REST SQL API:
-            POST /api/atelier/v1/{namespace}/_query/sql
+            POST /api/atelier/v1/{namespace}/action/query
             Body: {"query": "SELECT ..."}
+            Response: {"result": {"content": [...]}}
 
         Args:
             query: SQL query string targeting FHIR SQL Builder tables
@@ -111,8 +112,8 @@ class FHIRSQLAnalyticsService:
         Returns:
             Dictionary with columns and rows from query results
         """
-        # IRIS REST SQL execution endpoint
-        url = f"{self.iris_base_url}/api/atelier/v1/{self.namespace}/_query/sql"
+        # IRIS Atelier action/query endpoint (verified against IRIS 2026.1)
+        url = f"{self.iris_base_url}/api/atelier/v1/{self.namespace}/action/query"
 
         logger.info(f"Executing FHIR SQL Builder query: {query[:200]}...")
 
@@ -126,10 +127,12 @@ class FHIRSQLAnalyticsService:
 
                 if response.status_code == 200:
                     result = response.json()
-                    logger.info(f"SQL query successful - returned {len(result.get('result', {}).get('content', []))} rows")
+                    rows = result.get("result", {}).get("content", [])
+                    logger.info(f"SQL query successful - returned {len(rows)} rows")
                     return {
                         "success": True,
-                        "data": result,
+                        "data": rows,
+                        "row_count": len(rows),
                         "query": query,
                         "source": "IRIS FHIR SQL Builder"
                     }
