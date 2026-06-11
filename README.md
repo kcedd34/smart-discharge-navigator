@@ -12,6 +12,19 @@
 
 ---
 
+## 🌐 Live Demo
+
+> **Running on a public server — no installation required.**
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | http://109.123.244.170:3000 |
+| **Swagger / API Docs** | http://109.123.244.170:8000/docs |
+| **IRIS Management Portal** | http://109.123.244.170:52773/csp/sys/UtilHome.csp (SuperUser / SYS) |
+| **FHIR R4 Endpoint** | http://109.123.244.170:52773/fhir/r4/metadata |
+
+---
+
 ## 🚀 Quick Start
 
 ```bash
@@ -288,8 +301,11 @@ Access http://localhost:3000 to view all patients sorted by risk score.
 
 **Example questions**:
 - "What are the main readmission risk factors for this patient?"
+- "Which patients are at highest readmission risk?"
 - "Compare readmission risk across all ICU patients"
 - "Should I be concerned about medication interactions?"
+
+> **Note**: General queries (without a patient selected) automatically load full clinical FHIR data — Encounter, Condition, MedicationRequest, Observation, AllergyIntolerance — plus pre-calculated risk scores for every patient, giving the AI Agent complete context to rank and compare patients.
 
 ### AI Patient Analysis
 

@@ -37,3 +37,4 @@ config/iris/install_fhir_v*.txt
 config/iris/install_fhir_direct.txt
 config/iris/install_v3.txt
 config/iris/uninstall_fhir.txt
+.aider*

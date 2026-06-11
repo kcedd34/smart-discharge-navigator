@@ -184,7 +184,10 @@ CHAT_PROMPT_TEMPLATE = """Answer the clinical query using available FHIR patient
 **User Query:**
 {query}
 
-Provide a helpful, clinically-informed response. If the query requires patient data you don't have, say so.
+Provide a helpful, clinically-informed response grounded in the FHIR data provided above.
+When ranking patients by readmission risk, use the rule_based_risk_score and rule_based_risk_level
+fields as a baseline, then apply additional clinical reasoning from their encounters, conditions,
+medications, observations, and allergies to refine the ranking.
 Always cite which FHIR resources informed your answer."""
 
 SUMMARY_ROLE_PROMPT_TEMPLATE = """Generate a patient summary tailored for the role: **{role}**
@@ -553,21 +556,51 @@ class AIAgentService:
                 ])
                 patient_ids_referenced.append(patient_id)
         else:
-            # For general queries, load all patients summary
+            # For general queries, load full clinical FHIR data + risk scores for all patients
             patients = await self.fhir_client.search_resources("Patient", {"_count": "50"})
-            summaries = []
+            enriched_summaries = []
             for p in patients[:10]:  # Limit to 10 for token economy
                 pid = p.get("id", "")
-                name_list = p.get("name", [])
-                name = "Unknown"
-                if name_list:
-                    n = name_list[0]
-                    name = f"{' '.join(n.get('given', []))} {n.get('family', '')}".strip()
-                summaries.append({"id": pid, "name": name, "gender": p.get("gender", ""), "birthDate": p.get("birthDate", "")})
+                if not pid:
+                    continue
+
+                # Gather full FHIR data for each patient
+                fhir_data = await self._gather_patient_fhir_data(pid)
+                if not fhir_data:
+                    continue
+
+                # Calculate rule-based risk score as context for the LLM
+                try:
+                    age = self._calculate_age(p.get("birthDate"))
+                    encounters = await self.fhir_client.get_patient_encounters(pid)
+                    conditions = await self.fhir_client.get_patient_conditions(pid)
+                    medications = await self.fhir_client.get_patient_medications(pid)
+                    observations = await self.fhir_client.get_patient_observations(pid)
+                    rule_assessment = self.risk_calculator.calculate_risk(
+                        patient_id=pid,
+                        patient_age=age,
+                        encounters=encounters,
+                        conditions=conditions,
+                        medications=medications,
+                        observations=observations
+                    )
+                    fhir_data["rule_based_risk_score"] = round(rule_assessment.risk_score, 3)
+                    fhir_data["rule_based_risk_level"] = rule_assessment.risk_level
+                    fhir_data["rule_based_risk_factors"] = [
+                        {"name": f.name, "value": round(f.value, 3), "description": f.description}
+                        for f in rule_assessment.risk_factors
+                    ]
+                except Exception as e:
+                    logger.warning(f"Could not calculate risk for patient {pid}: {e}")
+                    fhir_data["rule_based_risk_score"] = None
+                    fhir_data["rule_based_risk_level"] = "UNKNOWN"
+
+                enriched_summaries.append(fhir_data)
                 patient_ids_referenced.append(pid)
 
-            context_data["patient_list"] = summaries
-            sources.append(f"Patient list (×{len(summaries)})")
+            context_data["patients"] = enriched_summaries
+            sources.append(f"Patient list (×{len(enriched_summaries)})")
+            sources.append(f"Encounter, Condition, MedicationRequest, Observation, AllergyIntolerance per patient")
 
         if not self.is_ai_available:
             return ChatResponse(

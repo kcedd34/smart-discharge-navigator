@@ -1,0 +1,20 @@
+{
+    "yaml.schemas": {
+        "file:///c%3A/Users/kcedd/.vscode/extensions/continue.continue-1.2.11-win32-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ],
+        "file:///c%3A/Users/kcedd/.vscode/extensions/continue.continue-1.2.14-win32-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ],
+        "file:///c%3A/Users/kcedd/.vscode/extensions/continue.continue-1.2.16-win32-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ],
+        "file:///c%3A/Users/kcedd/.vscode/extensions/continue.continue-1.2.17-win32-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ],
+        "file:///c%3A/Users/kcedd/.vscode/extensions/continue.continue-1.2.22-win32-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ],
+        "file:///c:/Users/kcedd/.vscode/extensions/continue.continue-1.2.22-win32-x64/config-yaml-schema.json": "file:///c%3A/Users/kcedd/.continue/config.yaml"
+    }
+}
