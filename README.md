@@ -566,6 +566,7 @@ npm start
 
 ▶️ **[Smart Discharge Navigator Demo](https://www.youtube.com/watch?v=MANijj_yASs)** (YouTube)
 
+
 **Coverage** (5–7 minutes):
 
 1. **Introduction** (30s) — Problem: hospital readmissions. Solution: AI Agent for FHIR
@@ -581,6 +582,9 @@ npm start
 - Highlight the **"Risks Missed by Rules"** section
 - Demonstrate **graceful fallback** by toggling `AI_ENABLED=false`
 
+---
+---
+▶️ **[Smart Discharge Navigator Demo]https://www.youtube.com/shorts/7Foa3ewpcDk** (YouTube Shorts)
 ---
 
 ## ⚙️ Environment Variables
