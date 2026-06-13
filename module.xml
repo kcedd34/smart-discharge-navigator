@@ -3,7 +3,7 @@
   <Document name="smart-discharge-navigator.ZPM">
     <Module>
       <Name>smart-discharge-navigator</Name>
-      <Version>1.2.5</Version>
+      <Version>1.2.6</Version>
       <Packaging>module</Packaging>
       <Description>AI Agent for Hospital Readmission Risk built on IRIS for Health.</Description>
       <Keywords>FHIR,AI,readmission,clinical,discharge</Keywords>
